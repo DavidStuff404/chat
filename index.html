@@ -3,12 +3,17 @@
 <head>
   <title>Public Chat</title>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    body { font-family: sans-serif; }
+    #errors { color: red; white-space: pre-wrap; }
+  </style>
 </head>
 
 <body>
 
 <h1>Public Chat</h1>
+
+<div id="errors"></div>
 
 <input id="name" placeholder="Your name">
 <br><br>
@@ -20,27 +25,41 @@
 
 <div id="chat"></div>
 
-<script>
-const client = window.supabase.createClient(
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+function showError(e) {
+  document.getElementById("errors").innerText += e + "\n";
+}
+
+const client = createClient(
   "https://otiiqsbhoghghjvwfjtw.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90aWlxc2Job2doZ2hqdndmanR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3NjI3MzUsImV4cCI6MjA5ODMzODczNX0.Qez48Cts5c-iBeJLSSwVqKAPp_7sPs6aiJ_Vv8I4H5Y"
 );
 
-async function send() {
+window.send = async function () {
   const name = document.getElementById("name").value;
   const message = document.getElementById("message").value;
 
-  await client.from("messages").insert([{ name, message }]);
-}
+  const { error } = await client
+    .from("messages")
+    .insert([{ name, message }]);
+
+  if (error) showError("INSERT ERROR: " + error.message);
+};
 
 async function loadMessages() {
-  const { data } = await client
+  const { data, error } = await client
     .from("messages")
     .select("*")
     .order("identity", { ascending: true });
 
+  if (error) showError("SELECT ERROR: " + error.message);
+
   document.getElementById("chat").innerHTML =
-    data.map(m => `<p><b>${m.name}</b>: ${m.message}</p>`).join("");
+    (data || [])
+      .map(m => `<p><b>${m.name}</b>: ${m.message}</p>`)
+      .join("");
 }
 
 loadMessages();
