@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Public Chat</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+
+<body>
+
+<h1>Public Chat</h1>
+
+<input id="name" placeholder="Your name">
+<br><br>
+
+<input id="message" placeholder="Message">
+<button onclick="send()">Send</button>
+
+<hr>
+
+<div id="chat"></div>
+
+<script>
+const client = window.supabase.createClient(
+  "https://otiiqsbhoghghjvwfjtw.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90aWlxc2Job2doZ2hqdndmanR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3NjI3MzUsImV4cCI6MjA5ODMzODczNX0.Qez48Cts5c-iBeJLSSwVqKAPp_7sPs6aiJ_Vv8I4H5Y"
+);
+
+async function send() {
+  const name = document.getElementById("name").value;
+  const message = document.getElementById("message").value;
+
+  await client.from("messages").insert([{ name, message }]);
+}
+
+async function loadMessages() {
+  const { data } = await client
+    .from("messages")
+    .select("*")
+    .order("identity", { ascending: true });
+
+  document.getElementById("chat").innerHTML =
+    data.map(m => `<p><b>${m.name}</b>: ${m.message}</p>`).join("");
+}
+
+loadMessages();
+setInterval(loadMessages, 2000);
+</script>
+
+</body>
+</html>
