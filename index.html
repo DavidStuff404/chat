@@ -1268,7 +1268,7 @@
 })();
 </script>
 
-  <base href="https://prod-data.sekai.chat/v3-games/sandbox/games/57fd7091-a41c-4015-b6f4-a706148807f8/dist/565c4e32-665e-4907-8071-5f184ba0a8f4/">
+  <base href="https://prod-data.sekai.chat/v3-games/sandbox/games/57fd7091-a41c-4015-b6f4-a706148807f8/dist/1bdd21a9-15b5-478e-bebb-971cbfbfb868/">
 <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Meta Quest 3 vs Quest 3S: Verity XR Experience</title>
@@ -1350,12 +1350,64 @@ window.sekaiEditable = {
     }
   ],
   "videos": [],
-  "tune": [],
+  "tune": [
+    {
+      "id": "verity-rotation-offset-normalized",
+      "label": "Verity Rotation Offset Normalized",
+      "type": "slider",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "value": 0
+    }
+  ],
   "text": [],
   "colors": [],
   "prompts": [],
   "voices": []
 };
+
+</script> <!-- sekai:keep -->
+    <script>
+// window.sekaiEditable — AUTO-GENERATED. Do NOT author or edit this object.
+// The harness derives it from your game code after every write: a slot
+// exists iff the code references it. Declare config AT THE USAGE SITE.
+
+
+</script> <!-- sekai:keep -->
+    <script>
+// window.sekaiEditable — AUTO-GENERATED. Do NOT author or edit this object.
+// The harness derives it from your game code after every write: a slot
+// exists iff the code references it. Declare config AT THE USAGE SITE.
+
+
+</script> <!-- sekai:keep -->
+    <script>
+// window.sekaiEditable — AUTO-GENERATED. Do NOT author or edit this object.
+// The harness derives it from your game code after every write: a slot
+// exists iff the code references it. Declare config AT THE USAGE SITE.
+
+
+</script> <!-- sekai:keep -->
+    <script>
+// window.sekaiEditable — AUTO-GENERATED. Do NOT author or edit this object.
+// The harness derives it from your game code after every write: a slot
+// exists iff the code references it. Declare config AT THE USAGE SITE.
+
+
+</script> <!-- sekai:keep -->
+    <script>
+// window.sekaiEditable — AUTO-GENERATED. Do NOT author or edit this object.
+// The harness derives it from your game code after every write: a slot
+// exists iff the code references it. Declare config AT THE USAGE SITE.
+
+
+</script> <!-- sekai:keep -->
+    <script>
+// window.sekaiEditable — AUTO-GENERATED. Do NOT author or edit this object.
+// The harness derives it from your game code after every write: a slot
+// exists iff the code references it. Declare config AT THE USAGE SITE.
+
 
 </script> <!-- sekai:keep -->
     <script>
@@ -1651,11 +1703,14 @@ window.sekaiEditable = {
 
       // Three.js Interactive XR & Verity Squeeze Simulator
       let scene, camera, renderer;
+      let playerGroup;
       let verityGroup, verityMesh;
       let hand1, hand2;
       let handModel1, handModel2;
+      let controller1, controller2;
       let threeInitialized = false;
       const deformableMeshes = [];
+      const backroomsColliders = [];
 
       function initThreeJS() {
         if (threeInitialized) return;
@@ -1668,7 +1723,11 @@ window.sekaiEditable = {
         scene.background = new THREE.Color(0x87CEEB);
 
         camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 100);
-        camera.position.set(0, 0, 3.2);
+
+        playerGroup = new THREE.Group();
+        playerGroup.position.set(0, 0, 3.2);
+        scene.add(playerGroup);
+        playerGroup.add(camera);
 
         renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
         renderer.setSize(container.clientWidth, container.clientHeight);
@@ -1737,14 +1796,19 @@ window.sekaiEditable = {
         const handModelFactory = new XRHandModelFactory();
 
         hand1 = renderer.xr.getHand(0);
-        scene.add(hand1);
+        playerGroup.add(hand1);
         handModel1 = handModelFactory.createHandModel(hand1, 'mesh');
         hand1.add(handModel1);
 
         hand2 = renderer.xr.getHand(1);
-        scene.add(hand2);
+        playerGroup.add(hand2);
         handModel2 = handModelFactory.createHandModel(hand2, 'mesh');
         hand2.add(handModel2);
+
+        controller1 = renderer.xr.getController(0);
+        playerGroup.add(controller1);
+        controller2 = renderer.xr.getController(1);
+        playerGroup.add(controller2);
 
         // Grid Helper for VR mode
         const gridHelper = new THREE.GridHelper(10, 10, 0x0066ff, 0x222222);
@@ -1765,15 +1829,74 @@ window.sekaiEditable = {
         });
 
         renderer.xr.addEventListener('sessionend', () => {
-          verityGroup.position.set(0, 0, 0);
+          playerGroup.position.set(0, 0, 3.2);
+          playerGroup.rotation.set(0, 0, 0);
           scene.background = new THREE.Color(0x87CEEB);
         });
+
+        function checkCollision(pos) {
+          if (backroomsColliders.length === 0) return false;
+          const raycaster = new THREE.Raycaster();
+          const directions = [
+            new THREE.Vector3(1, 0, 0),
+            new THREE.Vector3(-1, 0, 0),
+            new THREE.Vector3(0, 0, 1),
+            new THREE.Vector3(0, 0, -1)
+          ];
+          const startPos = pos.clone();
+          startPos.y = 0.8;
+          for (const dir of directions) {
+            raycaster.set(startPos, dir);
+            raycaster.far = 0.5;
+            const intersects = raycaster.intersectObjects(backroomsColliders, true);
+            if (intersects.length > 0) {
+              return true;
+            }
+          }
+          return false;
+        }
 
         // Animation Loop
         let clock = new THREE.Clock();
         renderer.setAnimationLoop(() => {
           const dt = Math.min(clock.getDelta(), 0.03);
           const elapsedTime = clock.getElapsedTime();
+
+          // Locomotion via Gamepad
+          const session = renderer.xr.getSession();
+          if (session) {
+            for (const source of session.inputSources) {
+              if (source.gamepad) {
+                const axes = source.gamepad.axes;
+                if (source.handedness === 'left') {
+                  const x = axes[2] || 0;
+                  const z = axes[3] || 0;
+                  if (Math.abs(x) > 0.1 || Math.abs(z) > 0.1) {
+                    const camDir = new THREE.Vector3();
+                    camera.getWorldDirection(camDir);
+                    camDir.y = 0;
+                    camDir.normalize();
+                    const camRight = new THREE.Vector3();
+                    camRight.crossVectors(camera.up, camDir).normalize().negate();
+                    const moveVec = new THREE.Vector3()
+                      .addScaledVector(camDir, -z)
+                      .addScaledVector(camRight, x)
+                      .multiplyScalar(dt * 2.0);
+                    const nextPos = playerGroup.position.clone().add(moveVec);
+                    if (!checkCollision(nextPos)) {
+                      playerGroup.position.copy(nextPos);
+                    }
+                  }
+                }
+                if (source.handedness === 'right') {
+                  const x = axes[2] || 0;
+                  if (Math.abs(x) > 0.1) {
+                    playerGroup.rotation.y -= x * dt * 1.5;
+                  }
+                }
+              }
+            }
+          }
 
           // Float animation for Verity
           if (verityGroup) {
@@ -1792,7 +1915,12 @@ window.sekaiEditable = {
             // Smoothly look at the camera
             const currentRotation = verityGroup.quaternion.clone();
             verityGroup.lookAt(target);
-            verityGroup.rotateY(Math.PI); // Rotate 180 degrees to face the camera
+         
+             // Apply rotation offset (read live from config)
+             const offsetNormalized = getConfig('tune', 'verity-rotation-offset-normalized', 0.0);
+              const offsetDeg = offsetNormalized * 360 - 90;
+             verityGroup.rotateY((offsetDeg * Math.PI) / 180);
+          
             const targetRotation = verityGroup.quaternion.clone();
             verityGroup.quaternion.copy(currentRotation).slerp(targetRotation, 0.05);
           }
@@ -1817,7 +1945,7 @@ window.sekaiEditable = {
                 verityGroup.getWorldPosition(ballPos);
                 const distToBall = currentPinchPos.distanceTo(ballPos);
                 
-                if (pinchDist < 0.04 && distToBall < 0.4) {
+                if (pinchDist < 0.05 && distToBall < 0.5) {
                   if (!stateObj.active) {
                     stateObj.active = true;
                     stateObj.prevWorldPos.copy(currentPinchPos);
@@ -1911,10 +2039,10 @@ window.sekaiEditable = {
             });
             
             // Physics parameters for slime
-            const springK = 30.0; // lower stiffness for slime
-            const damping = 2.0;  // lower damping for jelly wobble
-            const pushForce = 45.0; // stronger push force
-            const pushRadius = 0.5; // larger radius of influence
+            const springK = 80.0; // faster return to normal
+            const damping = 8.0;  // higher damping to stabilize faster
+            const pushForce = 30.0; // slightly less extreme deformation
+            const pushRadius = 0.35; // tighter, more accurate hitbox
             
             for (let i = 0; i < count; i++) {
               const ox = origPosAttr.getX(i);
@@ -2046,6 +2174,7 @@ window.sekaiEditable = {
             if (child.isMesh) {
               child.receiveShadow = true;
               child.castShadow = true;
+              backroomsColliders.push(child);
             }
           });
           scene.add(model);
