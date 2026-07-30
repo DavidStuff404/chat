@@ -1268,7 +1268,7 @@
 })();
 </script>
 
-  <base href="https://prod-data.sekai.chat/v3-games/sandbox/games/57fd7091-a41c-4015-b6f4-a706148807f8/dist/b235a603-0ba5-40a5-8b4d-dbcadcd70096/">
+  <base href="https://prod-data.sekai.chat/v3-games/sandbox/games/57fd7091-a41c-4015-b6f4-a706148807f8/dist/565c4e32-665e-4907-8071-5f184ba0a8f4/">
 <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Meta Quest 3 vs Quest 3S: Verity XR Experience</title>
@@ -1286,7 +1286,7 @@ window.sekaiEditable = {
       "id": "meta-quest-3-hero",
       "label": "meta-quest-3-hero",
       "type": "image",
-      "value": "https://prod-data.sekai.chat/v3-games/chat-creation/cutout/3273296/3cf0bd44-7744-466b-9c26-bd7d7adcd28f_body.png"
+      "value": "https://prod-data.sekai.chat/v3-games/chat-creation/01ead7c2-df97-4b56-924f-044c1f69c7db.png"
     }
   ],
   "music": [
@@ -1374,6 +1374,13 @@ window.sekaiEditable = {
 </script> <!-- sekai:keep -->
     <script>
 // window.sekaiEditable — AUTO-GENERATED. Do NOT author or edit this object.
+// The harness derives it from your game code after every write: a slot
+// exists iff the code references it. Declare config AT THE USAGE SITE.
+
+
+</script> <!-- sekai:keep -->
+    <script>
+// window.sekaiEditable — AUTO-GENERATED. Do NOT author or edit this object.
 // The harness derives it from your game code after every write: a slot exists
 // iff the code references it. Declare config AT THE USAGE SITE — getConfig
 // calls with literal category/id strings, data-sekai-slot attributes on
@@ -1410,7 +1417,7 @@ window.sekaiEditable = {
 
     <style>
       :root {
-        --bg-slate: #090A0C;
+        --bg-slate: #87CEEB;
         --card-slate: #1C1E22;
         --border-slate: #3A3F47;
         --text-light: #F3F4F6;
@@ -1586,7 +1593,20 @@ window.sekaiEditable = {
         phase: 'menu', // 'menu' | 'sim'
         isSqueezing: false,
         isSqueezingFromMouse: false,
-        currentPlayingAudio: null
+        currentPlayingAudio: null,
+        mousePinchPoint: null
+      };
+
+      // Track pinch states for VR hands
+      const vrPinchStates = [
+        { active: false, prevWorldPos: new THREE.Vector3() },
+        { active: false, prevWorldPos: new THREE.Vector3() }
+      ];
+
+      // Track pinch state for mouse
+      const mousePinchState = {
+        active: false,
+        prevWorldPos: new THREE.Vector3()
       };
 
       window.appState = state; // expose for inspection
@@ -1645,7 +1665,7 @@ window.sekaiEditable = {
         if (!container || !canvas) return;
 
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x090a0c);
+        scene.background = new THREE.Color(0x87CEEB);
 
         camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 100);
         camera.position.set(0, 0, 3.2);
@@ -1657,22 +1677,22 @@ window.sekaiEditable = {
         // Enable WebXR
         renderer.xr.enabled = true;
 
-        // Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+        // Realistic Day Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         scene.add(ambientLight);
 
-        const dirLight = new THREE.DirectionalLight(0x0066ff, 2.5);
-        dirLight.position.set(3, 4, 5);
-        scene.add(dirLight);
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+        hemiLight.position.set(0, 20, 0);
+        scene.add(hemiLight);
 
-        const pointLight = new THREE.PointLight(0x00ff66, 2, 10);
-        pointLight.position.set(-3, -2, 2);
-        scene.add(pointLight);
+        const sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
+        sunLight.position.set(10, 20, 10);
+        sunLight.castShadow = true;
+        scene.add(sunLight);
 
-        // Warm light for realistic skin tones
-        const warmLight = new THREE.DirectionalLight(0xffe0d0, 1.5);
-        warmLight.position.set(-2, 4, -1);
-        scene.add(warmLight);
+        const fillLight = new THREE.DirectionalLight(0xd0e0fc, 1.0);
+        fillLight.position.set(-10, 10, -10);
+        scene.add(fillLight);
 
         // Build Procedural 3D Verity Entity (fallback sphere)
         verityGroup = new THREE.Group();
@@ -1740,13 +1760,13 @@ window.sekaiEditable = {
           if (session.environmentBlendMode === 'alpha-blend' || session.environmentBlendMode === 'additive') {
             scene.background = null;
           } else {
-            scene.background = new THREE.Color(0x090a0c);
+            scene.background = new THREE.Color(0x87CEEB);
           }
         });
 
         renderer.xr.addEventListener('sessionend', () => {
           verityGroup.position.set(0, 0, 0);
-          scene.background = new THREE.Color(0x090a0c);
+          scene.background = new THREE.Color(0x87CEEB);
         });
 
         // Animation Loop
@@ -1772,9 +1792,51 @@ window.sekaiEditable = {
             // Smoothly look at the camera
             const currentRotation = verityGroup.quaternion.clone();
             verityGroup.lookAt(target);
+            verityGroup.rotateY(Math.PI); // Rotate 180 degrees to face the camera
             const targetRotation = verityGroup.quaternion.clone();
             verityGroup.quaternion.copy(currentRotation).slerp(targetRotation, 0.05);
           }
+
+          // 1. Update VR Hands pinch and drag
+          [hand1, hand2].forEach((hand, index) => {
+            const stateObj = vrPinchStates[index];
+            if (hand && hand.visible) {
+              const indexTip = hand.joints['index-finger-tip'];
+              const thumbTip = hand.joints['thumb-tip'];
+              if (indexTip && thumbTip) {
+                const indexPos = new THREE.Vector3();
+                const thumbPos = new THREE.Vector3();
+                indexTip.getWorldPosition(indexPos);
+                thumbTip.getWorldPosition(thumbPos);
+                
+                const pinchDist = indexPos.distanceTo(thumbPos);
+                const currentPinchPos = new THREE.Vector3().addVectors(indexPos, thumbPos).multiplyScalar(0.5);
+                
+                // Check if pinch is near Verity
+                const ballPos = new THREE.Vector3();
+                verityGroup.getWorldPosition(ballPos);
+                const distToBall = currentPinchPos.distanceTo(ballPos);
+                
+                if (pinchDist < 0.04 && distToBall < 0.4) {
+                  if (!stateObj.active) {
+                    stateObj.active = true;
+                    stateObj.prevWorldPos.copy(currentPinchPos);
+                  } else {
+                    // Calculate drag delta
+                    const delta = currentPinchPos.clone().sub(stateObj.prevWorldPos);
+                    applyDragDelta(currentPinchPos, delta);
+                    stateObj.prevWorldPos.copy(currentPinchPos);
+                  }
+                } else {
+                  stateObj.active = false;
+                }
+              } else {
+                stateObj.active = false;
+              }
+            } else {
+              stateObj.active = false;
+            }
+          });
 
           // Check WebXR squeeze
           updateSqueezeDetection();
@@ -1802,33 +1864,33 @@ window.sekaiEditable = {
           });
 
           // Soft body jelly deformation update
-          // Get active pinch points
-          const pinchPoints = [];
+          // Get active push points (non-pinching hand joints)
+          const pushPoints = [];
 
-          // 1. VR Hands pinch points
-          [hand1, hand2].forEach(hand => {
+          [hand1, hand2].forEach((hand, index) => {
+            const stateObj = vrPinchStates[index];
             if (hand && hand.visible) {
-              const indexTip = hand.joints['index-finger-tip'];
-              const thumbTip = hand.joints['thumb-tip'];
-              if (indexTip && thumbTip) {
-                const indexPos = new THREE.Vector3();
-                const thumbPos = new THREE.Vector3();
-                indexTip.getWorldPosition(indexPos);
-                thumbTip.getWorldPosition(thumbPos);
-                
-                const pinchDist = indexPos.distanceTo(thumbPos);
-                if (pinchDist < 0.06) { // pinch threshold
-                  const pinchCenter = new THREE.Vector3().addVectors(indexPos, thumbPos).multiplyScalar(0.5);
-                  pinchPoints.push(pinchCenter);
+              // If this hand is pinching, we don't use its fingertips for pushing to avoid fighting the drag
+              if (stateObj.active) return;
+              
+              const jointsToUse = [
+                'wrist',
+                'thumb-tip',
+                'index-finger-tip',
+                'middle-finger-tip',
+                'ring-finger-tip',
+                'pinky-finger-tip'
+              ];
+              jointsToUse.forEach(jointName => {
+                const joint = hand.joints[jointName];
+                if (joint) {
+                  const jointPos = new THREE.Vector3();
+                  joint.getWorldPosition(jointPos);
+                  pushPoints.push(jointPos);
                 }
-              }
+              });
             }
           });
-
-          // 2. Mouse pinch point
-          if (state.isSqueezingFromMouse && state.mousePinchPoint) {
-            pinchPoints.push(state.mousePinchPoint);
-          }
 
           // Update soft body physics for each deformable mesh
           deformableMeshes.forEach(mesh => {
@@ -1841,18 +1903,18 @@ window.sekaiEditable = {
             
             const count = posAttr.count;
             
-            // Transform pinch points to local space
-            const localPinchPoints = pinchPoints.map(pt => {
+            // Transform push points to local space
+            const localPushPoints = pushPoints.map(pt => {
               const localPt = pt.clone();
               mesh.worldToLocal(localPt);
               return localPt;
             });
             
-            // Physics parameters
-            const springK = 180.0; // stiffness
-            const damping = 8.0;  // damping
-            const pinchForce = 15.0; // strength of pinch deformation
-            const pinchRadius = 0.3; // radius of influence in local space
+            // Physics parameters for slime
+            const springK = 30.0; // lower stiffness for slime
+            const damping = 2.0;  // lower damping for jelly wobble
+            const pushForce = 45.0; // stronger push force
+            const pushRadius = 0.5; // larger radius of influence
             
             for (let i = 0; i < count; i++) {
               const ox = origPosAttr.getX(i);
@@ -1877,16 +1939,16 @@ window.sekaiEditable = {
               let fy = -springK * dy - damping * vy;
               let fz = -springK * dz - damping * vz;
               
-              // 2. Pinch deformation force (push away from pinch points)
-              localPinchPoints.forEach(lpt => {
+              // 2. Push deformation force (push away from push points)
+              localPushPoints.forEach(lpt => {
                 const pdx = lx - lpt.x;
                 const pdy = ly - lpt.y;
                 const pdz = lz - lpt.z;
                 const dist = Math.sqrt(pdx * pdx + pdy * pdy + pdz * pdz);
                 
-                if (dist < pinchRadius && dist > 0.001) {
+                if (dist < pushRadius && dist > 0.001) {
                   // Push direction
-                  const forceMag = (1.0 - dist / pinchRadius) * pinchForce;
+                  const forceMag = (1.0 - dist / pushRadius) * pushForce;
                   fx += (pdx / dist) * forceMag;
                   fy += (pdy / dist) * forceMag;
                   fz += (pdz / dist) * forceMag;
@@ -1894,8 +1956,8 @@ window.sekaiEditable = {
               });
               
               // 3. Soft body floating wobble (gentle noise/sine wave)
-              const wobbleFreq = 2.5;
-              const wobbleAmp = 0.12;
+              const wobbleFreq = 1.5;
+              const wobbleAmp = 0.25;
               const wave = Math.sin(elapsedTime * wobbleFreq + ox * 6.0 + oy * 6.0) * wobbleAmp;
               fx += wave * ox;
               fy += wave * oy;
@@ -1992,35 +2054,65 @@ window.sekaiEditable = {
         });
       }
 
-      function updateSqueezeDetection() {
-        let isSqueezing = false;
-
-        [hand1, hand2].forEach(hand => {
-          if (hand && hand.visible) {
-            // Get joints
-            const indexTip = hand.joints['index-finger-tip'];
-            const thumbTip = hand.joints['thumb-tip'];
-
-            if (indexTip && thumbTip) {
-              const indexPos = new THREE.Vector3();
-              const thumbPos = new THREE.Vector3();
-              indexTip.getWorldPosition(indexPos);
-              thumbTip.getWorldPosition(thumbPos);
-
-              const pinchDist = indexPos.distanceTo(thumbPos);
-
-              const pinchCenter = new THREE.Vector3().addVectors(indexPos, thumbPos).multiplyScalar(0.5);
-              const ballPos = new THREE.Vector3();
-              verityGroup.getWorldPosition(ballPos);
-              const distToBall = pinchCenter.distanceTo(ballPos);
-
-              // If pinch is close (< 4cm) and near the ball (< 30cm)
-              if (pinchDist < 0.04 && distToBall < 0.3) {
-                isSqueezing = true;
-              }
+      function applyDragDelta(worldPinchPos, worldDelta) {
+        deformableMeshes.forEach(mesh => {
+          const posAttr = mesh.geometry.attributes.position;
+          const origPosAttr = mesh.userData.originalPosition;
+          const vels = mesh.userData.velocities;
+          const disps = mesh.userData.displacements;
+          
+          if (!posAttr || !origPosAttr || !vels || !disps) return;
+          
+          const count = posAttr.count;
+          
+          // Convert world pinch position and world delta to local space
+          const localPinchPos = worldPinchPos.clone();
+          mesh.worldToLocal(localPinchPos);
+          
+          const meshWorldQuaternion = new THREE.Quaternion();
+          mesh.getWorldQuaternion(meshWorldQuaternion);
+          const localDelta = worldDelta.clone().applyQuaternion(meshWorldQuaternion.invert());
+          
+          const dragRadius = 0.5; // radius of influence for dragging
+          
+          for (let i = 0; i < count; i++) {
+            const ox = origPosAttr.getX(i);
+            const oy = origPosAttr.getY(i);
+            const oz = origPosAttr.getZ(i);
+            
+            const dx = disps[i * 3];
+            const dy = disps[i * 3 + 1];
+            const dz = disps[i * 3 + 2];
+            
+            const lx = ox + dx;
+            const ly = oy + dy;
+            const lz = oz + dz;
+            
+            const pdx = lx - localPinchPos.x;
+            const pdy = ly - localPinchPos.y;
+            const pdz = lz - localPinchPos.z;
+            const dist = Math.sqrt(pdx * pdx + pdy * pdy + pdz * pdz);
+            
+            if (dist < dragRadius) {
+              // Drag factor: 1.0 at center, 0.0 at boundary
+              const factor = 1.0 - dist / dragRadius;
+              
+              // Apply delta directly to displacement
+              disps[i * 3] += localDelta.x * factor;
+              disps[i * 3 + 1] += localDelta.y * factor;
+              disps[i * 3 + 2] += localDelta.z * factor;
+              
+              // Set velocity to match the drag velocity to give it momentum
+              vels[i * 3] = localDelta.x / 0.016 * factor;
+              vels[i * 3 + 1] = localDelta.y / 0.016 * factor;
+              vels[i * 3 + 2] = localDelta.z / 0.016 * factor;
             }
           }
         });
+      }
+
+      function updateSqueezeDetection() {
+        const isSqueezing = vrPinchStates[0].active || vrPinchStates[1].active;
 
         if (isSqueezing) {
           if (!state.isSqueezing) {
@@ -2182,12 +2274,41 @@ window.sekaiEditable = {
                state.mousePinchPoint = verityGroup.position.clone();
              }
              
-             setTimeout(() => {
-               state.isSqueezingFromMouse = false;
-               state.isSqueezing = false;
-               state.mousePinchPoint = null;
-             }, 800);
+             mousePinchState.active = true;
+             mousePinchState.prevWorldPos.copy(state.mousePinchPoint);
            }
+         });
+
+         canvas?.addEventListener('pointermove', (e) => {
+           if (state.phase === 'sim' && mousePinchState.active) {
+             const rect = canvas.getBoundingClientRect();
+             const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+             const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+             
+             const raycaster = new THREE.Raycaster();
+             raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+             
+             const plane = new THREE.Plane();
+             plane.setFromNormalAndCoplanarPoint(
+               camera.getWorldDirection(new THREE.Vector3()).negate(),
+               mousePinchState.prevWorldPos
+             );
+             
+             const targetPoint = new THREE.Vector3();
+             if (raycaster.ray.intersectPlane(plane, targetPoint)) {
+               const delta = targetPoint.clone().sub(mousePinchState.prevWorldPos);
+               applyDragDelta(targetPoint, delta);
+               mousePinchState.prevWorldPos.copy(targetPoint);
+               state.mousePinchPoint = targetPoint;
+             }
+           }
+         });
+
+         window.addEventListener('pointerup', () => {
+           mousePinchState.active = false;
+           state.isSqueezingFromMouse = false;
+           state.isSqueezing = false;
+           state.mousePinchPoint = null;
          });
        }
 
