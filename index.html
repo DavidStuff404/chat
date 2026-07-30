@@ -1268,7 +1268,7 @@
 })();
 </script>
 
-  <base href="https://prod-data.sekai.chat/v3-games/sandbox/games/57fd7091-a41c-4015-b6f4-a706148807f8/dist/588dae79-5ddb-4d1e-9c83-3e05cb967751/">
+  <base href="https://prod-data.sekai.chat/v3-games/sandbox/games/57fd7091-a41c-4015-b6f4-a706148807f8/dist/b235a603-0ba5-40a5-8b4d-dbcadcd70096/">
 <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Meta Quest 3 vs Quest 3S: Verity XR Experience</title>
@@ -1281,7 +1281,14 @@
 // The harness derives it from your game code after every write: a slot
 // exists iff the code references it. Declare config AT THE USAGE SITE.
 window.sekaiEditable = {
-  "images": [],
+  "images": [
+    {
+      "id": "meta-quest-3-hero",
+      "label": "meta-quest-3-hero",
+      "type": "image",
+      "value": "https://prod-data.sekai.chat/v3-games/chat-creation/cutout/3273296/3cf0bd44-7744-466b-9c26-bd7d7adcd28f_body.png"
+    }
+  ],
   "music": [
     {
       "id": "user-music-1-verity_quote_1-mp3-mpeg",
@@ -1316,7 +1323,15 @@ window.sekaiEditable = {
       "name": "User Music 4 Verity_Revealself"
     }
   ],
-  "sfx": [],
+  "sfx": [
+    {
+      "id": "haptic-click",
+      "label": "deep heavy button clack",
+      "type": "audio",
+      "value": "https://prod-data.sekai.chat/aiu-music-sfx/auto/5373b291cc2256854062e595da1f5854.mp3",
+      "description": "haptic click"
+    }
+  ],
   "fonts": [],
   "models": [
     {
@@ -1325,6 +1340,13 @@ window.sekaiEditable = {
       "type": "model",
       "description": "user model 1 verity",
       "value": "https://prod-data.sekai.chat/v3-games/chat-creation/models/d42b75b0-128c-4fa9-ad5a-7ece49087dc7.glb"
+    },
+    {
+      "id": "user-model-1-backrooms_vr",
+      "label": "User Model 1 Backrooms_Vr",
+      "type": "model",
+      "description": "user model 1 backrooms_vr",
+      "value": "https://prod-data.sekai.chat/v3-games/chat-creation/models/6e35db9a-9a50-4788-b618-7ce8343af10a.glb"
     }
   ],
   "videos": [],
@@ -1334,6 +1356,13 @@ window.sekaiEditable = {
   "prompts": [],
   "voices": []
 };
+
+</script> <!-- sekai:keep -->
+    <script>
+// window.sekaiEditable — AUTO-GENERATED. Do NOT author or edit this object.
+// The harness derives it from your game code after every write: a slot
+// exists iff the code references it. Declare config AT THE USAGE SITE.
+
 
 </script> <!-- sekai:keep -->
     <script>
@@ -1464,7 +1493,7 @@ window.sekaiEditable = {
      <!-- Main Interactive Viewport (Always active in background) -->
      <div class="w-full h-full absolute inset-0 overflow-hidden bg-black z-0" id="sim-viewport" data-spec-id="sim-viewport">
        <!-- Canvas Container for Three.js -->
-       <canvas id="three-canvas" class="w-full h-full absolute inset-0 z-0" data-engine="three.js r180" width="776" height="1226" style="width: 388px; height: 613px;"></canvas>
+       <canvas id="three-canvas" class="w-full h-full absolute inset-0 z-0" data-engine="three.js r180" width="776" height="1182" style="width: 388px; height: 591px;"></canvas>
      </div>
 
      <!-- #region @sekai:menu · Main Menu -->
@@ -1546,6 +1575,7 @@ window.sekaiEditable = {
 
       // 1. Declare & Register All User-provided Assets & Custom Editable Slots
       const MODEL_VERITY = getConfig('models', 'user-model-1-verity');
+      const MODEL_BACKROOMS = getConfig('models', 'user-model-1-backrooms_vr');
       const MUSIC_QUOTE_1 = getConfig('music', 'user-music-1-verity_quote_1-mp3-mpeg');
       const MUSIC_REAL_VERITY = getConfig('music', 'user-music-2-i-am-the-real-verity-made-w');
       const MUSIC_VOICE_VERITY = getConfig('music', 'user-music-3-voice-verity-verity');
@@ -1605,6 +1635,7 @@ window.sekaiEditable = {
       let hand1, hand2;
       let handModel1, handModel2;
       let threeInitialized = false;
+      const deformableMeshes = [];
 
       function initThreeJS() {
         if (threeInitialized) return;
@@ -1656,6 +1687,13 @@ window.sekaiEditable = {
         verityMesh = new THREE.Mesh(orbGeo, orbMat);
         verityGroup.add(verityMesh);
 
+        // Make procedural sphere deformable too!
+        verityMesh.userData.originalPosition = verityMesh.geometry.attributes.position.clone();
+        const count = verityMesh.geometry.attributes.position.count;
+        verityMesh.userData.velocities = new Float32Array(count * 3);
+        verityMesh.userData.displacements = new Float32Array(count * 3);
+        deformableMeshes.push(verityMesh);
+
         // Verity Inner Pulsing Core
         const innerGeo = new THREE.IcosahedronGeometry(0.2, 2);
         const innerMat = new THREE.MeshBasicMaterial({
@@ -1671,6 +1709,9 @@ window.sekaiEditable = {
 
         // Load GLTF model
         loadVerityModel();
+
+        // Load Backrooms model
+        loadBackroomsModel();
 
         // Setup WebXR Hands
         const handModelFactory = new XRHandModelFactory();
@@ -1693,14 +1734,12 @@ window.sekaiEditable = {
         // Handle WebXR session events
         renderer.xr.addEventListener('sessionstart', () => {
           verityGroup.position.set(0, 1.2, -0.5);
-          gridHelper.visible = true;
+          gridHelper.visible = false;
 
           const session = renderer.xr.getSession();
           if (session.environmentBlendMode === 'alpha-blend' || session.environmentBlendMode === 'additive') {
-            gridHelper.visible = false;
             scene.background = null;
           } else {
-            gridHelper.visible = true;
             scene.background = new THREE.Color(0x090a0c);
           }
         });
@@ -1713,45 +1752,179 @@ window.sekaiEditable = {
         // Animation Loop
         let clock = new THREE.Clock();
         renderer.setAnimationLoop(() => {
+          const dt = Math.min(clock.getDelta(), 0.03);
           const elapsedTime = clock.getElapsedTime();
 
           // Float animation for Verity
           if (verityGroup) {
             verityGroup.position.y = (renderer.xr.isPresenting ? 1.2 : 0) + Math.sin(elapsedTime * 1.8) * 0.05;
-            verityGroup.rotation.y += 0.005;
             if (innerMesh) innerMesh.rotation.y += 0.01;
+
+            // Always stare at you (camera)
+            const target = new THREE.Vector3();
+            if (renderer.xr.isPresenting) {
+              const xrCamera = renderer.xr.getCamera();
+              xrCamera.getWorldPosition(target);
+            } else {
+              camera.getWorldPosition(target);
+            }
+            
+            // Smoothly look at the camera
+            const currentRotation = verityGroup.quaternion.clone();
+            verityGroup.lookAt(target);
+            const targetRotation = verityGroup.quaternion.clone();
+            verityGroup.quaternion.copy(currentRotation).slerp(targetRotation, 0.05);
           }
 
           // Check WebXR squeeze
           updateSqueezeDetection();
 
-          // Apply realistic skin material to XR hands once loaded
+          // Apply pitch black material to XR hands once loaded
           [handModel1, handModel2].forEach(model => {
-            if (model && !model.hasRealisticSkin) {
+            if (model && !model.hasBlackSkin) {
               let hasMesh = false;
               model.traverse(child => {
                 if (child.isMesh) {
                   hasMesh = true;
                   child.material = new THREE.MeshStandardMaterial({
-                    color: 0xe0a899, // realistic skin tone
-                    roughness: 0.6,
-                    metalness: 0.0
+                    color: 0x000000, // pitch black
+                    roughness: 0.9,
+                    metalness: 0.1
                   });
                   child.castShadow = true;
                   child.receiveShadow = true;
                 }
               });
               if (hasMesh) {
-                model.hasRealisticSkin = true;
+                model.hasBlackSkin = true;
               }
             }
           });
 
-          if (state.isSqueezing) {
-            verityGroup.scale.set(0.8, 1.2, 0.8);
-          } else {
-            verityGroup.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
+          // Soft body jelly deformation update
+          // Get active pinch points
+          const pinchPoints = [];
+
+          // 1. VR Hands pinch points
+          [hand1, hand2].forEach(hand => {
+            if (hand && hand.visible) {
+              const indexTip = hand.joints['index-finger-tip'];
+              const thumbTip = hand.joints['thumb-tip'];
+              if (indexTip && thumbTip) {
+                const indexPos = new THREE.Vector3();
+                const thumbPos = new THREE.Vector3();
+                indexTip.getWorldPosition(indexPos);
+                thumbTip.getWorldPosition(thumbPos);
+                
+                const pinchDist = indexPos.distanceTo(thumbPos);
+                if (pinchDist < 0.06) { // pinch threshold
+                  const pinchCenter = new THREE.Vector3().addVectors(indexPos, thumbPos).multiplyScalar(0.5);
+                  pinchPoints.push(pinchCenter);
+                }
+              }
+            }
+          });
+
+          // 2. Mouse pinch point
+          if (state.isSqueezingFromMouse && state.mousePinchPoint) {
+            pinchPoints.push(state.mousePinchPoint);
           }
+
+          // Update soft body physics for each deformable mesh
+          deformableMeshes.forEach(mesh => {
+            const posAttr = mesh.geometry.attributes.position;
+            const origPosAttr = mesh.userData.originalPosition;
+            const vels = mesh.userData.velocities;
+            const disps = mesh.userData.displacements;
+            
+            if (!posAttr || !origPosAttr || !vels || !disps) return;
+            
+            const count = posAttr.count;
+            
+            // Transform pinch points to local space
+            const localPinchPoints = pinchPoints.map(pt => {
+              const localPt = pt.clone();
+              mesh.worldToLocal(localPt);
+              return localPt;
+            });
+            
+            // Physics parameters
+            const springK = 180.0; // stiffness
+            const damping = 8.0;  // damping
+            const pinchForce = 15.0; // strength of pinch deformation
+            const pinchRadius = 0.3; // radius of influence in local space
+            
+            for (let i = 0; i < count; i++) {
+              const ox = origPosAttr.getX(i);
+              const oy = origPosAttr.getY(i);
+              const oz = origPosAttr.getZ(i);
+              
+              let dx = disps[i * 3];
+              let dy = disps[i * 3 + 1];
+              let dz = disps[i * 3 + 2];
+              
+              let vx = vels[i * 3];
+              let vy = vels[i * 3 + 1];
+              let vz = vels[i * 3 + 2];
+              
+              // Current local position of the vertex
+              const lx = ox + dx;
+              const ly = oy + dy;
+              const lz = oz + dz;
+              
+              // 1. Spring force returning to original position
+              let fx = -springK * dx - damping * vx;
+              let fy = -springK * dy - damping * vy;
+              let fz = -springK * dz - damping * vz;
+              
+              // 2. Pinch deformation force (push away from pinch points)
+              localPinchPoints.forEach(lpt => {
+                const pdx = lx - lpt.x;
+                const pdy = ly - lpt.y;
+                const pdz = lz - lpt.z;
+                const dist = Math.sqrt(pdx * pdx + pdy * pdy + pdz * pdz);
+                
+                if (dist < pinchRadius && dist > 0.001) {
+                  // Push direction
+                  const forceMag = (1.0 - dist / pinchRadius) * pinchForce;
+                  fx += (pdx / dist) * forceMag;
+                  fy += (pdy / dist) * forceMag;
+                  fz += (pdz / dist) * forceMag;
+                }
+              });
+              
+              // 3. Soft body floating wobble (gentle noise/sine wave)
+              const wobbleFreq = 2.5;
+              const wobbleAmp = 0.12;
+              const wave = Math.sin(elapsedTime * wobbleFreq + ox * 6.0 + oy * 6.0) * wobbleAmp;
+              fx += wave * ox;
+              fy += wave * oy;
+              fz += wave * oz;
+              
+              // Integrate
+              vx += fx * dt;
+              vy += fy * dt;
+              vz += fz * dt;
+              
+              dx += vx * dt;
+              dy += vy * dt;
+              dz += vz * dt;
+              
+              // Save back
+              vels[i * 3] = vx;
+              vels[i * 3 + 1] = vy;
+              vels[i * 3 + 2] = vz;
+              
+              disps[i * 3] = dx;
+              disps[i * 3 + 1] = dy;
+              disps[i * 3 + 2] = dz;
+              
+              posAttr.setXYZ(i, ox + dx, oy + dy, oz + dz);
+            }
+            
+            posAttr.needsUpdate = true;
+            mesh.geometry.computeVertexNormals();
+          });
 
           renderer.render(scene, camera);
         });
@@ -1773,6 +1946,23 @@ window.sekaiEditable = {
           const center = box.getCenter(new THREE.Vector3());
           model.position.sub(center.multiplyScalar(scale));
 
+          // Set up deformable meshes
+          deformableMeshes.length = 0;
+          model.traverse(child => {
+            if (child.isMesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+              if (child.geometry && child.geometry.attributes.position) {
+                // Clone original positions
+                child.userData.originalPosition = child.geometry.attributes.position.clone();
+                const count = child.geometry.attributes.position.count;
+                child.userData.velocities = new Float32Array(count * 3);
+                child.userData.displacements = new Float32Array(count * 3);
+                deformableMeshes.push(child);
+              }
+            }
+          });
+
           // Replace the procedural sphere
           if (verityMesh && verityGroup) {
             verityGroup.remove(verityMesh);
@@ -1781,6 +1971,24 @@ window.sekaiEditable = {
           verityGroup.add(verityMesh);
         }, undefined, (error) => {
           console.error('Error loading Verity model:', error);
+        });
+      }
+
+      function loadBackroomsModel() {
+        if (!MODEL_BACKROOMS) return;
+        const loader = new GLTFLoader();
+        loader.load(MODEL_BACKROOMS, (gltf) => {
+          const model = gltf.scene;
+          model.position.set(0, 0, 0);
+          model.traverse(child => {
+            if (child.isMesh) {
+              child.receiveShadow = true;
+              child.castShadow = true;
+            }
+          });
+          scene.add(model);
+        }, undefined, (error) => {
+          console.error('Error loading Backrooms model:', error);
         });
       }
 
@@ -1825,14 +2033,22 @@ window.sekaiEditable = {
         }
       }
 
+      let lastVoiceTime = 0;
       function triggerSqueezeEffect() {
         state.isSqueezing = true;
         vibrate(90);
 
-        // Cycle quotes on squeeze
-        const quotes = [MUSIC_QUOTE_1, MUSIC_REAL_VERITY, MUSIC_VOICE_VERITY, MUSIC_REVEAL_SELF];
-        const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
-        playAudio('squeeze', randomQuote);
+        // Play voice lines more rarely (e.g., 20% chance and at least 6 seconds cooldown)
+        const now = Date.now();
+        if (now - lastVoiceTime > 6000 && Math.random() < 0.2) {
+          lastVoiceTime = now;
+          const quotes = [MUSIC_QUOTE_1, MUSIC_REAL_VERITY, MUSIC_VOICE_VERITY, MUSIC_REVEAL_SELF];
+          const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+          playAudio('squeeze', randomQuote);
+        } else {
+          // Play a subtle squish/squeeze synth beep instead of voice lines
+          synthBeep(220, 100);
+        }
 
         setTimeout(() => {
           if (!state.isSqueezingFromMouse) {
@@ -1951,10 +2167,26 @@ window.sekaiEditable = {
            if (state.phase === 'sim') {
              state.isSqueezingFromMouse = true;
              triggerSqueezeEffect();
+             
+             // Project mouse click to find intersection with Verity
+             const rect = canvas.getBoundingClientRect();
+             const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+             const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+             
+             const raycaster = new THREE.Raycaster();
+             raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+             const intersects = raycaster.intersectObject(verityGroup, true);
+             if (intersects.length > 0) {
+               state.mousePinchPoint = intersects[0].point;
+             } else {
+               state.mousePinchPoint = verityGroup.position.clone();
+             }
+             
              setTimeout(() => {
                state.isSqueezingFromMouse = false;
                state.isSqueezing = false;
-             }, 400);
+               state.mousePinchPoint = null;
+             }, 800);
            }
          });
        }
