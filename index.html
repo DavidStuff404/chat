@@ -1267,7 +1267,7 @@
 })();
 </script>
 
-  <base href="https://prod-data.sekai.chat/v3-games/sandbox/games/64bd242c-4f2e-4bce-bc27-294e181270b1/dist/d5495950-9eee-4692-b822-a70b80e3302a/">
+  <base href="https://prod-data.sekai.chat/v3-games/sandbox/games/64bd242c-4f2e-4bce-bc27-294e181270b1/dist/e28f3681-15f5-492e-bcd8-599fb2e1a69b/">
 <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PyroBox VR 3D</title>
@@ -1306,6 +1306,13 @@ window.sekaiEditable = {
   "prompts": [],
   "voices": []
 };
+
+</script> <!-- sekai:keep -->
+    <script>
+// window.sekaiEditable — AUTO-GENERATED. Do NOT author or edit this object.
+// The harness derives it from your game code after every write: a slot
+// exists iff the code references it. Declare config AT THE USAGE SITE.
+
 
 </script> <!-- sekai:keep -->
     <script>
@@ -1696,7 +1703,7 @@ window.sekaiEditable = {
 
     <div id="ui-overlay">
         <!-- Toast Notification -->
-        <div id="toast">Code copied to clipboard!</div>
+        <div id="toast" class="show">Game code copied to clipboard!</div>
 
         <!-- Main Menu: Title-less per user instruction, Play & Copy Code buttons only -->
         <div id="main-menu">
@@ -3435,7 +3442,14 @@ window.sekaiEditable = {
            ======================================================================= */
         document.getElementById('btn-play').addEventListener('click', () => {
             // Unlock audio
-            initBGM();
+             try {
+                 const bgmEl = document.getElementById('bgm');
+                 if (bgmEl) {
+                     initBGM(bgmEl);
+                 }
+             } catch (e) {
+                 console.warn("initBGM failed", e);
+             }
             initAudioEngine();
             if (audioCtx && audioCtx.state === 'suspended') {
                 audioCtx.resume();
