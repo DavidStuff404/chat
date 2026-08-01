@@ -1267,7 +1267,7 @@
 })();
 </script>
 
-  <base href="https://prod-data.sekai.chat/v3-games/sandbox/games/64bd242c-4f2e-4bce-bc27-294e181270b1/dist/edf95618-d25c-4228-b46a-91a336dfedf0/">
+  <base href="https://prod-data.sekai.chat/v3-games/sandbox/games/64bd242c-4f2e-4bce-bc27-294e181270b1/dist/c0a0a9d1-7c88-4244-b504-09734881dbb4/">
 <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PyroBox VR 3D</title>
@@ -1282,7 +1282,6 @@ window.sekaiEditable = {
   "sfx": [],
   "fonts": [],
   "models": [
-    { id: 'user-model-1-glass_houses_classic_roblox', label: 'glass_houses_classic_roblox_map', type: 'model', value: '', description: 'user-provided asset — required in the experience' },
     {
       "id": "user-model-1-crossroads",
       "label": "User Model 1 Crossroads",
@@ -1322,6 +1321,13 @@ window.sekaiEditable = {
 
 
 </script> <!-- sekai:keep -->
+    <script>
+// window.sekaiEditable — AUTO-GENERATED. Do NOT author or edit this object.
+// The harness derives it from your game code after every write: a slot
+// exists iff the code references it. Declare config AT THE USAGE SITE.
+
+
+</script> <!-- sekai:keep -->
     <script src="./asset-urls.js"></script> <!-- sekai:keep -->
     <script type="module" src="./js/sekai/bridge/audioUnlock.js"></script> <!-- sekai:keep -->
     <script type="module" src="./js/sekai/bridge/editable.js"></script> <!-- sekai:keep -->
@@ -1329,6 +1335,13 @@ window.sekaiEditable = {
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js"
+            }
+        }
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -1671,7 +1684,7 @@ window.sekaiEditable = {
 
     <audio id="bgm" loop=""></audio>
 
-    <div id="webgl-canvas"><canvas width="776" height="1182" style="display: block; width: 388px; height: 591px;"></canvas></div>
+    <div id="webgl-canvas"><canvas width="776" height="1178" style="display: block; width: 388px; height: 589px;"></canvas></div>
 
     <div id="ui-overlay">
         <!-- Toast Notification -->
@@ -1774,6 +1787,7 @@ window.sekaiEditable = {
 
     <script type="module">
         import { applyAllEditableValues, getConfig, initBGM, vibrate } from './js/sekai/bridge/index.js';
+        import { XRHandModelFactory } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/webxr/XRHandModelFactory.js';
 
         /* =======================================================================
            STATE & CONFIG
@@ -1796,7 +1810,7 @@ window.sekaiEditable = {
 
         // Sand / Particle physics engine arrays
         const particles = [];
-        const MAX_PARTICLES = 600;
+        const MAX_PARTICLES = 1000;
         const arenaBounds = { minX: -8, maxX: 8, minY: 0, maxY: 10, minZ: -8, maxZ: 8 };
 
         // Pitch Black hand material
@@ -1806,6 +1820,10 @@ window.sekaiEditable = {
             metalness: 0.85,
             envMapIntensity: 0.5
         });
+
+        // Shared geometries and materials for optimization
+        let sharedGeometries = {};
+        let sharedMaterials = {};
 
         // Audio synth engine
         let audioCtx = null;
@@ -1853,6 +1871,30 @@ window.sekaiEditable = {
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             renderer.xr.enabled = true;
             container.appendChild(renderer.domElement);
+
+            // Initialize shared geometries and materials
+            sharedGeometries = {
+                WOOD: new THREE.BoxGeometry(0.12, 0.12, 0.12),
+                ICE: new THREE.BoxGeometry(0.14, 0.14, 0.14),
+                WALL: new THREE.BoxGeometry(0.18, 0.18, 0.18),
+                OIL: new THREE.SphereGeometry(0.06, 8, 8),
+                WATER: new THREE.SphereGeometry(0.06, 8, 8),
+                FIRE: new THREE.SphereGeometry(0.07, 8, 8)
+            };
+
+            sharedMaterials = {
+                WOOD: new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 0.8 }),
+                ICE: new THREE.MeshPhysicalMaterial({ color: 0x7dd3fc, opacity: 0.8, transparent: true, roughness: 0.1 }),
+                WALL: new THREE.MeshStandardMaterial({ color: 0x4b5563, roughness: 0.3 }),
+                OIL: new THREE.MeshStandardMaterial({ color: 0x3b0764, roughness: 0.2, metalness: 0.9 }),
+                WATER: new THREE.MeshPhysicalMaterial({ color: 0x2563eb, opacity: 0.7, transparent: true, roughness: 0.1 }),
+                FIRE_TEMPLATE: new THREE.MeshBasicMaterial({
+                    color: 0xff4500,
+                    transparent: true,
+                    opacity: 1.0,
+                    blending: THREE.AdditiveBlending
+                })
+            };
 
             // VR Button setup
             const vrBtn = VRButton.createButton(renderer);
@@ -2117,6 +2159,13 @@ window.sekaiEditable = {
 
             scene.add(hand0);
             scene.add(hand1);
+
+            // Add realistic hand models using XRHandModelFactory
+            const handModelFactory = new XRHandModelFactory();
+            const handModel0 = handModelFactory.createHandModel(hand0, 'mesh');
+            hand0.add(handModel0);
+            const handModel1 = handModelFactory.createHandModel(hand1, 'mesh');
+            hand1.add(handModel1);
         }
 
         function setupHandVisuals(handController) {
@@ -2204,17 +2253,93 @@ window.sekaiEditable = {
             });
         }
 
+        function checkHandMeshLoaded(handController) {
+            if (handController.userData.hasMeshLoaded) return true;
+            
+            let hasMesh = false;
+            handController.traverse(child => {
+                if (child.isMesh && child !== leftHandMesh && child !== rightHandMesh && !handJointMeshes.includes(child) && !handBoneMeshes.includes(child)) {
+                    hasMesh = true;
+                }
+            });
+            
+            if (hasMesh) {
+                handController.userData.hasMeshLoaded = true;
+            }
+            return hasMesh;
+        }
+
+        function updateHandMaterials(handController) {
+            if (handController.userData.materialsApplied) return;
+            
+            let applied = false;
+            handController.traverse(child => {
+                if (child.isMesh && 
+                    child !== leftHandMesh && 
+                    child !== rightHandMesh && 
+                    !handJointMeshes.includes(child) && 
+                    !handBoneMeshes.includes(child) && 
+                    child.name !== 'emitterTip') {
+                    
+                    child.material = pitchBlackMaterial;
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    applied = true;
+                }
+            });
+            
+            if (applied) {
+                handController.userData.materialsApplied = true;
+            }
+        }
+
+        function getPinchPoint(handController) {
+            const thumbTip = handController.joints['thumb-tip'];
+            const indexTip = handController.joints['index-finger-tip'];
+            if (thumbTip && indexTip && thumbTip.visible && indexTip.visible) {
+                const p1 = new THREE.Vector3();
+                const p2 = new THREE.Vector3();
+                thumbTip.getWorldPosition(p1);
+                indexTip.getWorldPosition(p2);
+                return new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+            }
+            return null;
+        }
+
         function updateHandBones(handController) {
+            const hasMesh = checkHandMeshLoaded(handController);
+
+            // Hide/show manual joints
+            for (let name in handController.joints) {
+                const jointGroup = handController.joints[name];
+                if (jointGroup) {
+                    for (let i = 0; i < jointGroup.children.length; i++) {
+                        const child = jointGroup.children[i];
+                        if (handJointMeshes.includes(child)) {
+                            child.visible = !hasMesh;
+                        }
+                    }
+                }
+            }
+
             if (!handController.visible || !handController.bones) {
                 if (handController.bones) {
-                    handController.bones.forEach(bone => {
-                        bone.mesh.visible = false;
-                    });
+                    for (let i = 0; i < handController.bones.length; i++) {
+                        handController.bones[i].mesh.visible = false;
+                    }
                 }
                 return;
             }
 
-            handController.bones.forEach(bone => {
+            if (hasMesh) {
+                for (let i = 0; i < handController.bones.length; i++) {
+                    handController.bones[i].mesh.visible = false;
+                }
+                return;
+            }
+
+            for (let i = 0; i < handController.bones.length; i++) {
+                const bone = handController.bones[i];
                 const j1 = handController.joints[bone.joint1];
                 const j2 = handController.joints[bone.joint2];
 
@@ -2238,7 +2363,7 @@ window.sekaiEditable = {
                 } else {
                     bone.mesh.visible = false;
                 }
-            });
+            }
         }
 
         function isPinching(handController) {
@@ -2266,26 +2391,12 @@ window.sekaiEditable = {
                 this.life = type === 'FIRE' ? 1.5 : 8.0;
                 this.maxLife = this.life;
 
-                // Mesh creation per particle type
-                let geo, mat;
-                if (type === 'WOOD') {
-                    geo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
-                    mat = new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 0.8 });
-                } else if (type === 'ICE') {
-                    geo = new THREE.BoxGeometry(0.14, 0.14, 0.14);
-                    mat = new THREE.MeshPhysicalMaterial({ color: 0x7dd3fc, opacity: 0.8, transparent: true, roughness: 0.1 });
-                } else if (type === 'WALL') {
-                    geo = new THREE.BoxGeometry(0.18, 0.18, 0.18);
-                    mat = new THREE.MeshStandardMaterial({ color: 0x4b5563, roughness: 0.3 });
-                } else if (type === 'OIL') {
-                    geo = new THREE.SphereGeometry(0.06, 8, 8);
-                    mat = new THREE.MeshStandardMaterial({ color: 0x3b0764, roughness: 0.2, metalness: 0.9 });
-                } else if (type === 'WATER') {
-                    geo = new THREE.SphereGeometry(0.06, 8, 8);
-                    mat = new THREE.MeshPhysicalMaterial({ color: 0x2563eb, opacity: 0.7, transparent: true, roughness: 0.1 });
-                } else { // FIRE
-                    geo = new THREE.SphereGeometry(0.07, 10, 10);
-                    mat = new THREE.MeshBasicMaterial({ color: 0xff4500 });
+                const geo = sharedGeometries[type];
+                let mat;
+                if (type === 'FIRE') {
+                    mat = sharedMaterials.FIRE_TEMPLATE.clone();
+                } else {
+                    mat = sharedMaterials[type];
                 }
 
                 this.mesh = new THREE.Mesh(geo, mat);
@@ -2294,108 +2405,145 @@ window.sekaiEditable = {
                 scene.add(this.mesh);
             }
 
-             update(dt) {
-                 this.life -= dt;
+            update(dt, reactiveParticles) {
+                this.life -= dt;
 
-                 if (this.type !== 'WALL') {
-                     // Gravity & motion
-                     if (this.type === 'FIRE') {
-                         this.velocity.y += 1.8 * dt; // Rise up
-                         this.velocity.x += (Math.random() - 0.5) * 0.5 * dt;
-                         this.velocity.z += (Math.random() - 0.5) * 0.5 * dt;
-                     } else {
-                         this.velocity.y -= 7.5 * dt; // Gravity down
-                     }
-
-                     this.position.addScaledVector(this.velocity, dt);
-
-                     // Ground & Boundary collision
-                     if (this.position.y < 0.05) {
-                         this.position.y = 0.05;
-                         this.velocity.y *= -0.3; // Dampen bounce
-                         if (this.type === 'WATER' || this.type === 'OIL') {
-                             this.velocity.x += (Math.random() - 0.5) * 1.5;
-                             this.velocity.z += (Math.random() - 0.5) * 1.5;
-                         }
-                     }
-                 }
-
-                 // Collide with Crossroads map structures
-                 for (let c of mapColliders) {
-                     if (c.worldBox.containsPoint(this.position)) {
-                         resolveBoxCollision(this, c.worldBox);
-                         break;
-                     }
-                 }
-
-                 // Collide with player hands (joint-level)
-                 const handJoints = getHandJointPositions();
-                 handJoints.forEach(joint => {
-                     const dist = this.position.distanceTo(joint.pos);
-                     if (dist < joint.radius + 0.02) {
-                         const normal = new THREE.Vector3().subVectors(this.position, joint.pos).normalize();
-                         this.position.copy(joint.pos).addScaledVector(normal, joint.radius + 0.02);
-                         this.velocity.reflect(normal).multiplyScalar(0.3);
+                if (this.type !== 'WALL') {
+                    // Gravity & motion
+                    if (this.type === 'FIRE') {
+                        this.velocity.y += 2.5 * dt; // Rise up faster
+                        this.velocity.x += (Math.random() - 0.5) * 1.2 * dt; // More turbulence
+                        this.velocity.z += (Math.random() - 0.5) * 1.2 * dt;
                         
-                         const handVel = joint.hand === 'left' ? handVelocities.left : handVelocities.right;
-                         this.velocity.addScaledVector(handVel, 0.5);
-                         triggerHaptic(10);
-                     }
-                 });
+                        const lifeRatio = Math.max(0, this.life / this.maxLife);
+                        this.mesh.scale.setScalar(lifeRatio * 1.5);
+                        if (this.mesh.material) {
+                            this.mesh.material.opacity = lifeRatio;
+                            if (lifeRatio > 0.6) {
+                                this.mesh.material.color.setRGB(1.0, 0.8, 0.2);
+                            } else if (lifeRatio > 0.3) {
+                                this.mesh.material.color.setRGB(1.0, 0.4, 0.0);
+                            } else {
+                                this.mesh.material.color.setRGB(0.8 * (lifeRatio / 0.3), 0.1 * (lifeRatio / 0.3), 0.0);
+                            }
+                        }
+                    } else {
+                        this.velocity.y -= 7.5 * dt; // Gravity down
+                    }
 
-                 // Collide with head
-                 const headDist = this.position.distanceTo(camera.position);
-                 if (headDist < 0.2) {
-                     const normal = new THREE.Vector3().subVectors(this.position, camera.position).normalize();
-                     this.position.copy(camera.position).addScaledVector(normal, 0.22);
-                     this.velocity.reflect(normal).multiplyScalar(0.5);
-                     triggerHaptic(15);
-                 }
+                    this.position.addScaledVector(this.velocity, dt);
 
-                 this.mesh.position.copy(this.position);
+                    // Ground & Boundary collision
+                    if (this.position.y < 0.05) {
+                        this.position.y = 0.05;
+                        this.velocity.y *= -0.3; // Dampen bounce
+                        if (this.type === 'WATER' || this.type === 'OIL') {
+                            this.velocity.x += (Math.random() - 0.5) * 1.5;
+                            this.velocity.z += (Math.random() - 0.5) * 1.5;
+                        }
+                    }
+                    
+                    // Keep particles within arena bounds
+                    if (this.position.x < arenaBounds.minX) {
+                        this.position.x = arenaBounds.minX;
+                        this.velocity.x *= -0.5;
+                    } else if (this.position.x > arenaBounds.maxX) {
+                        this.position.x = arenaBounds.maxX;
+                        this.velocity.x *= -0.5;
+                    }
+                    if (this.position.z < arenaBounds.minZ) {
+                        this.position.z = arenaBounds.minZ;
+                        this.velocity.z *= -0.5;
+                    } else if (this.position.z > arenaBounds.maxZ) {
+                        this.position.z = arenaBounds.maxZ;
+                        this.velocity.z *= -0.5;
+                    }
+                }
 
-                 // Thermal interactions with other particles
-                 if (this.type === 'FIRE') {
-                     particles.forEach(other => {
-                         if (other === this || other.life <= 0) return;
-                         const dist = this.position.distanceTo(other.position);
-                         if (dist < 0.25) {
-                             if (other.type === 'WOOD' || other.type === 'OIL') {
-                                 other.type = 'FIRE';
-                                 other.mesh.material = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
-                                 other.life = 1.0;
-                                 triggerHaptic(30);
-                             } else if (other.type === 'ICE') {
-                                 other.type = 'WATER';
-                                 other.mesh.material = new THREE.MeshPhysicalMaterial({ color: 0x2563eb, opacity: 0.7, transparent: true });
-                             } else if (other.type === 'WATER') {
-                                 this.life = 0; // Fire extinguished
-                                 other.life = 0; // Water evaporated
-                             }
-                         }
-                     });
-                 }
+                // Collide with Crossroads map structures
+                for (let i = 0; i < mapColliders.length; i++) {
+                    const c = mapColliders[i];
+                    if (c.worldBox.containsPoint(this.position)) {
+                        resolveBoxCollision(this, c.worldBox);
+                        break;
+                    }
+                }
 
-                 // Thermal interactions with physics props
-                 physicsProps.forEach(prop => {
-                     const dist = this.position.distanceTo(prop.position);
-                     if (dist < prop.radius + 0.1) {
-                         if (this.type === 'FIRE') {
-                             prop.temperature += 0.15;
-                             if (prop.temperature > 0.5) {
-                                 prop.onFire = true;
-                             }
-                         } else if (this.type === 'ICE') {
-                             prop.temperature = 0;
-                             prop.onFire = false;
-                         }
-                     }
-                 });
-             }
+                // Collide with player hands (joint-level)
+                const handJoints = getHandJointPositions();
+                for (let i = 0; i < handJoints.length; i++) {
+                    const joint = handJoints[i];
+                    const dist = this.position.distanceTo(joint.pos);
+                    if (dist < joint.radius + 0.02) {
+                        const normal = new THREE.Vector3().subVectors(this.position, joint.pos).normalize();
+                        this.position.copy(joint.pos).addScaledVector(normal, joint.radius + 0.02);
+                        this.velocity.reflect(normal).multiplyScalar(0.3);
+                       
+                        const handVel = joint.hand === 'left' ? handVelocities.left : handVelocities.right;
+                        this.velocity.addScaledVector(handVel, 0.5);
+                        triggerHaptic(10);
+                    }
+                }
+
+                // Collide with head
+                const headDist = this.position.distanceTo(camera.position);
+                if (headDist < 0.2) {
+                    const normal = new THREE.Vector3().subVectors(this.position, camera.position).normalize();
+                    this.position.copy(camera.position).addScaledVector(normal, 0.22);
+                    this.velocity.reflect(normal).multiplyScalar(0.5);
+                    triggerHaptic(15);
+                }
+
+                this.mesh.position.copy(this.position);
+
+                // Thermal interactions with other particles
+                if (this.type === 'FIRE') {
+                    for (let i = 0; i < reactiveParticles.length; i++) {
+                        const other = reactiveParticles[i];
+                        if (other === this || other.life <= 0) continue;
+                        const dist = this.position.distanceTo(other.position);
+                        if (dist < 0.25) {
+                            if (other.type === 'WOOD' || other.type === 'OIL') {
+                                other.type = 'FIRE';
+                                other.mesh.material = sharedMaterials.FIRE_TEMPLATE.clone();
+                                other.life = 1.2 + Math.random() * 0.6;
+                                other.maxLife = other.life;
+                                triggerHaptic(30);
+                            } else if (other.type === 'ICE') {
+                                other.type = 'WATER';
+                                other.mesh.material = sharedMaterials.WATER;
+                            } else if (other.type === 'WATER') {
+                                this.life = 0; // Fire extinguished
+                                other.life = 0; // Water evaporated
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Thermal interactions with physics props
+                for (let i = 0; i < physicsProps.length; i++) {
+                    const prop = physicsProps[i];
+                    const dist = this.position.distanceTo(prop.position);
+                    if (dist < prop.radius + 0.1) {
+                        if (this.type === 'FIRE') {
+                            prop.temperature += 0.15;
+                            if (prop.temperature > 0.5) {
+                                prop.onFire = true;
+                            }
+                        } else if (this.type === 'ICE') {
+                            prop.temperature = 0;
+                            prop.onFire = false;
+                        }
+                    }
+                }
+            }
 
             destroy() {
                 scene.remove(this.mesh);
-                if (this.mesh.geometry) this.mesh.geometry.dispose();
+                if (this.type === 'FIRE' && this.mesh.material) {
+                    this.mesh.material.dispose();
+                }
             }
         }
 
@@ -2818,26 +2966,37 @@ window.sekaiEditable = {
          function updateHandGlow() {
              const colorHex = materialsList.find(m => m.name === activeMaterial)?.color || 0xff4500;
             
+             pitchBlackMaterial.emissive.setHex(colorHex);
+             pitchBlackMaterial.emissiveIntensity = 0.25;
+
              handJointMeshes.forEach(mesh => {
-                 mesh.material.emissive.setHex(colorHex);
-                 mesh.material.emissiveIntensity = 0.6;
+                 if (mesh.material) {
+                     mesh.material.emissive.setHex(colorHex);
+                     mesh.material.emissiveIntensity = 0.6;
+                 }
              });
             
              handBoneMeshes.forEach(mesh => {
-                 mesh.material.emissive.setHex(colorHex);
-                 mesh.material.emissiveIntensity = 0.2;
+                 if (mesh.material) {
+                     mesh.material.emissive.setHex(colorHex);
+                     mesh.material.emissiveIntensity = 0.2;
+                 }
              });
             
              leftHandMesh.traverse(child => {
                  if (child.isMesh && child.name !== 'emitterTip') {
-                     child.material.emissive?.setHex(colorHex);
-                     child.material.emissiveIntensity = 0.1;
+                     if (child.material) {
+                         child.material.emissive?.setHex(colorHex);
+                         child.material.emissiveIntensity = 0.1;
+                     }
                  }
              });
              rightHandMesh.traverse(child => {
                  if (child.isMesh && child.name !== 'emitterTip') {
-                     child.material.emissive?.setHex(colorHex);
-                     child.material.emissiveIntensity = 0.1;
+                     if (child.material) {
+                         child.material.emissive?.setHex(colorHex);
+                         child.material.emissiveIntensity = 0.1;
+                     }
                  }
              });
          }
@@ -3331,13 +3490,16 @@ window.sekaiEditable = {
                 controls.update();
             }
 
-             // Update hand velocities & grab state
-             updateHandVelocities(dt);
-             checkGrabbing();
-
+            // Update hand velocities & grab state
+            updateHandVelocities(dt);
+            checkGrabbing();
+            
             if (renderer.xr.isPresenting) {
                 leftHandMesh.visible = false;
                 rightHandMesh.visible = false;
+               
+                updateHandMaterials(hand0);
+                updateHandMaterials(hand1);
                
                 updateHandBones(hand0);
                 updateHandBones(hand1);
@@ -3349,22 +3511,63 @@ window.sekaiEditable = {
                 if (hand1.handedness === 'left') leftHand = hand1;
                 if (hand1.handedness === 'right') rightHand = hand1;
                
-                if (leftHand) {
+                if (leftHand && leftHand.visible) {
                     updatePalmMenu(leftHand, camera);
+                    
+                    if (!palmMenu.visible && isPinching(leftHand)) {
+                        const pinchPos = getPinchPoint(leftHand);
+                        if (pinchPos) {
+                            const wrist = leftHand.joints['wrist'];
+                            const indexTip = leftHand.joints['index-finger-tip'];
+                            let dir = new THREE.Vector3(0, 0, -1);
+                            if (wrist && indexTip) {
+                                const pWrist = new THREE.Vector3();
+                                const pTip = new THREE.Vector3();
+                                wrist.getWorldPosition(pWrist);
+                                indexTip.getWorldPosition(pTip);
+                                dir.subVectors(pTip, pWrist).normalize();
+                            }
+                            spawnParticle(pinchPos, dir, activeMaterial);
+                        }
+                    }
                 } else {
                     palmMenu.visible = false;
                 }
                
-                if (rightHand) {
+                if (rightHand && rightHand.visible) {
                     checkPalmMenuInteraction(rightHand);
                    
-                    if (isPinching(rightHand)) {
+                    let isInteractingWithMenu = false;
+                    if (palmMenu.visible) {
                         const indexTip = rightHand.joints['index-finger-tip'];
                         if (indexTip) {
-                            const emitterPos = new THREE.Vector3();
-                            indexTip.getWorldPosition(emitterPos);
-                            const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(indexTip.quaternion);
-                            spawnParticle(emitterPos, dir, activeMaterial);
+                            const indexTipPos = new THREE.Vector3();
+                            indexTip.getWorldPosition(indexTipPos);
+                            for (let i = 0; i < palmButtons.length; i++) {
+                                const btnWorldPos = new THREE.Vector3();
+                                palmButtons[i].getWorldPosition(btnWorldPos);
+                                if (indexTipPos.distanceTo(btnWorldPos) < 0.06) {
+                                    isInteractingWithMenu = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (!isInteractingWithMenu && isPinching(rightHand)) {
+                        const pinchPos = getPinchPoint(rightHand);
+                        if (pinchPos) {
+                            const wrist = rightHand.joints['wrist'];
+                            const indexTip = rightHand.joints['index-finger-tip'];
+                            let dir = new THREE.Vector3(0, 0, -1);
+                            if (wrist && indexTip) {
+                                const pWrist = new THREE.Vector3();
+                                const pTip = new THREE.Vector3();
+                                wrist.getWorldPosition(pWrist);
+                                indexTip.getWorldPosition(pTip);
+                                dir.subVectors(pTip, pWrist).normalize();
+                            }
+                            spawnParticle(pinchPos, dir, activeMaterial);
                         }
                     }
                 }
@@ -3380,12 +3583,22 @@ window.sekaiEditable = {
                 }
             }
 
-             // Update physics props
-             physicsProps.forEach(prop => prop.update(dt));
-             resolvePropCollisions();
+            // Update physics props
+            for (let i = 0; i < physicsProps.length; i++) {
+                physicsProps[i].update(dt);
+            }
+            resolvePropCollisions();
+
+            const reactiveParticles = [];
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+                if (p.life > 0 && (p.type === 'WOOD' || p.type === 'OIL' || p.type === 'ICE' || p.type === 'WATER')) {
+                    reactiveParticles.push(p);
+                }
+            }
 
             for (let i = particles.length - 1; i >= 0; i--) {
-                particles[i].update(dt);
+                particles[i].update(dt, reactiveParticles);
                 if (particles[i].life <= 0) {
                     particles[i].destroy();
                     particles.splice(i, 1);
@@ -3393,8 +3606,8 @@ window.sekaiEditable = {
             }
 
             updateDynamicLights();
-             updateHandLights();
-             updateHandGlow();
+            updateHandLights();
+            updateHandGlow();
             checkCollisions();
 
             renderer.render(scene, camera);
