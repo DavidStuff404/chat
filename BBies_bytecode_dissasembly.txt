@@ -1,0 +1,1832 @@
+.version	5.1
+
+.format	0
+.endianness	LITTLE
+.int_size	4
+.size_t_size	8
+.instruction_size	4
+.number_format	float	8
+
+.function	main
+
+.source	""
+.linedefined	0
+.lastlinedefined	0
+.numparams	0
+.is_vararg	2
+.maxstacksize	34
+
+.constant	k0	"getgenv"
+.constant	k1	"_G"
+.constant	k2	"shared"
+.constant	k3	"MDH_BB"
+.constant	k4	"MDH_DEBUG"
+.constant	k5	"print"
+.constant	k6	"MDH BOOBIES IS ALREADY RUNNING"
+.constant	k7	true
+.constant	k8	"GLOBAL ENVIRONMENTS FAILED (GETGENV / _G / SHARED)"
+.constant	k9	"game"
+.constant	k10	"GetService"
+.constant	k11	"HttpService"
+.constant	k12	"https://raw.githubusercontent.com/lua-u/SomeHub/main/UniversalMethodFinder.luau"
+.constant	k13	"UniversalMethodFinder"
+.constant	k14	"quetp"
+.constant	k15	"(...):find(\"queue\") and (...):find(\"tele\") and not ((...):find(\"run\") or (...):find(\"script\"))"
+.constant	k16	"protgui"
+.constant	k17	"(...):find(\"protect\") and (...):find(\"gui\") and not (...):find(\"un\")"
+.constant	k18	"cb"
+.constant	k19	"(...):find(\"clipboard\") or (...):find(\"copy\") and (...):find(\"string\")"
+.constant	k20	"req"
+.constant	k21	" (...):find(\"request\")"
+.constant	k22	"Players"
+.constant	k23	"LocalPlayer"
+.constant	k24	"ChildAdded"
+.constant	k25	"Wait"
+.constant	k26	"OnTeleport"
+.constant	k27	"Connect"
+.constant	k28	"https://ko-fi.com/drainchurch"
+.constant	k29	"SetCore"
+.constant	k30	"SendNotification"
+.constant	k31	"Title"
+.constant	k32	"Ko-Fi Donation Support"
+.constant	k33	"Text"
+.constant	k34	"Clipboard failed. Type the link manually \"https://ko-fi.com/drainchurch\""
+.constant	k35	"Icon"
+.constant	k36	"rbxassetid://9072448788"
+.constant	k37	"Duration"
+.constant	k38	20
+.constant	k39	"Url"
+.constant	k40	"http://127.0.0.1:6463/rpc?v=1"
+.constant	k41	"Method"
+.constant	k42	"POST"
+.constant	k43	"Content-Type"
+.constant	k44	"application/json"
+.constant	k45	"Origin"
+.constant	k46	"https://discord.com"
+.constant	k47	"Headers"
+.constant	k48	"JSONEncode"
+.constant	k49	"cmd"
+.constant	k50	"INVITE_BROWSER"
+.constant	k51	"nonce"
+.constant	k52	0
+.constant	k53	"code"
+.constant	k54	"jxDz5WnXu3"
+.constant	k55	"args"
+.constant	k56	"Body"
+.constant	k57	"DISCORD"
+.constant	k58	"Auto-Invite failed. Use the link in your clipboard"
+.constant	k59	10
+.constant	k60	"Breast"
+.constant	k61	"Target"
+.constant	k62	5
+.constant	k63	"Speed"
+.constant	k64	"Damper"
+.constant	k65	0.2
+.constant	k66	"BreastPhysics"
+.constant	k67	"BreastSize"
+.constant	k68	1
+.constant	k69	"Cheeks"
+.constant	k70	3
+.constant	k71	0.1
+.constant	k72	"CheeksPhysics"
+.constant	k73	"CheeksSize"
+.constant	k74	"Collisions"
+.constant	k75	false
+.constant	k76	"ForceAllRigs"
+.constant	k77	"Others"
+.constant	k78	"Me"
+.constant	k79	"Simulate_Physics_On_LocalPlayer_Only"
+.constant	k80	"BB_Settings"
+.constant	k81	"next"
+.constant	k82	nil
+.constant	k83	"Vector3"
+.constant	k84	"new"
+.constant	k85	0.026
+.constant	k86	0.93
+.constant	k87	0.907
+.constant	k88	0.904
+.constant	k89	-0.1
+.constant	k90	1.356
+.constant	k91	1.33
+.constant	k92	1.327
+.constant	k93	"BRST"
+.constant	k94	0.877
+.constant	k95	0.9
+.constant	k96	0.819
+.constant	k97	-0.05
+.constant	k98	1.166
+.constant	k99	1.25
+.constant	k100	1.23
+.constant	k101	"BRSTVisual"
+.constant	k102	"BreastScales"
+.constant	k103	0.83
+.constant	k104	0.9000000000000001
+.constant	k105	1.2
+.constant	k106	1.269
+.constant	k107	"CheekScales"
+.constant	k108	"BreastScaler"
+.constant	k109	"CheekScaler"
+.constant	k110	"https://raw.githubusercontent.com/Quenty/NevermoreEngine/version2/Modules/Shared/Physics/Spring.lua"
+.constant	k111	"Spring"
+.constant	k112	"https://gist.githubusercontent.com/htt-py/9d7f2500ee984bda56a5d69b86654c29/raw/FemaleRig.luau"
+.constant	k113	"FemaleRig"
+.constant	k114	"RunService"
+.constant	k115	"GameId"
+.constant	k116	"task"
+.constant	k117	"wait"
+.constant	k118	1359573625
+.constant	k119	"workspace"
+.constant	k120	"WaitForChild"
+.constant	k121	"Live"
+.constant	k122	"math"
+.constant	k123	"huge"
+.constant	k124	"ipairs"
+.constant	k125	"GetChildren"
+.constant	k126	"spawn"
+.constant	k127	"NPCs"
+.constant	k128	"DescendantAdded"
+.constant	k129	"GetDescendants"
+
+getglobal     r0    k0 ; k0 = "getgenv"
+test          r0     0
+jmp           l8
+getglobal     r0    k0 ; k0 = "getgenv"
+call          r0     1     2
+test          r0     1
+jmp          l12
+.label	l8
+getglobal     r0    k1 ; k1 = "_G"
+test          r0     1
+jmp          l12
+getglobal     r0    k2 ; k2 = "shared"
+.label	l12
+test          r0     0
+jmp          l24
+gettable      r1    r0    k3 ; k3 = "MDH_BB"
+test          r1     0
+jmp          l24
+gettable      r1    r0    k4 ; k4 = "MDH_DEBUG"
+test          r1     1
+jmp          l24
+getglobal     r1    k5 ; k5 = "print"
+loadk         r2    k6 ; k6 = "MDH BOOBIES IS ALREA" (truncated)
+call          r1     2     1
+return        r0     1
+.label	l24
+test          r0     0
+jmp          l28
+settable      r0    k3    k7 ; k7 = true
+jmp          l31
+.label	l28
+getglobal     r1    k5 ; k5 = "print"
+loadk         r2    k8 ; k8 = "GLOBAL ENVIRONMENTS " (truncated)
+call          r1     2     1
+.label	l31
+getglobal     r1    k9 ; k9 = "game"
+self          r1    r1   k10 ; k10 = "GetService"
+loadk         r3   k11 ; k11 = "HttpService"
+call          r1     3     2
+closure       r2    f9
+move          r0    r1 ; upvalue declaration
+move          r3    r2
+loadk         r4   k12 ; k12 = "https://raw.githubus" (truncated)
+loadk         r5   k13 ; k13 = "UniversalMethodFinde" (truncated)
+call          r3     3     3
+move          r5    r3
+newtable      r6     0     4
+settable      r6   k14   k15 ; k15 = "(...):find(\"queue\") " (truncated)
+settable      r6   k16   k17 ; k17 = "(...):find(\"protect\"" (truncated)
+settable      r6   k18   k19 ; k19 = "(...):find(\"clipboar" (truncated)
+settable      r6   k20   k21 ; k21 = " (...):find(\"request" (truncated)
+call          r5     2     1
+gettable      r5    r4   k14 ; k14 = "quetp"
+test          r5     0
+jmp          l68
+getglobal     r5    k9 ; k9 = "game"
+self          r5    r5   k10 ; k10 = "GetService"
+loadk         r7   k22 ; k22 = "Players"
+call          r5     3     2
+gettable      r6    r5   k23 ; k23 = "LocalPlayer"
+.label	l56
+test          r6     1
+jmp          l63
+gettable      r7    r5   k24 ; k24 = "ChildAdded"
+self          r7    r7   k25 ; k25 = "Wait"
+call          r7     2     1
+gettable      r6    r5   k23 ; k23 = "LocalPlayer"
+jmp          l56
+.label	l63
+gettable      r7    r6   k26 ; k26 = "OnTeleport"
+self          r7    r7   k27 ; k27 = "Connect"
+closure       r9    f4
+move          r0    r4 ; upvalue declaration
+call          r7     3     1
+.label	l68
+loadnil       r5    r5
+closure       r6    f3
+move          r0    r5 ; upvalue declaration
+gettable      r7    r4   k18 ; k18 = "cb"
+test          r7     0
+jmp          l78
+gettable      r7    r4   k18 ; k18 = "cb"
+loadk         r8   k28 ; k28 = "https://ko-fi.com/dr" (truncated)
+call          r7     2     1
+jmp          l87
+.label	l78
+move          r7    r6
+loadk         r8   k29 ; k29 = "SetCore"
+loadk         r9   k30 ; k30 = "SendNotification"
+newtable     r10     0     4
+settable     r10   k31   k32 ; k32 = "Ko-Fi Donation Suppo" (truncated)
+settable     r10   k33   k34 ; k34 = "Clipboard failed. Ty" (truncated)
+settable     r10   k35   k36 ; k36 = "rbxassetid://9072448" (truncated)
+settable     r10   k37   k38 ; k38 = 20
+call          r7     4     1
+.label	l87
+gettable      r7    r4   k20 ; k20 = "req"
+test          r7     0
+jmp         l109
+gettable      r7    r4   k20 ; k20 = "req"
+newtable      r8     0     4
+settable      r8   k39   k40 ; k40 = "http://127.0.0.1:646" (truncated)
+settable      r8   k41   k42 ; k42 = "POST"
+newtable      r9     0     2
+settable      r9   k43   k44 ; k44 = "application/json"
+settable      r9   k45   k46 ; k46 = "https://discord.com"
+settable      r8   k47    r9 ; k47 = "Headers"
+self          r9    r1   k48 ; k48 = "JSONEncode"
+newtable     r11     0     3
+settable     r11   k49   k50 ; k50 = "INVITE_BROWSER"
+settable     r11   k51   k52 ; k52 = 0
+newtable     r12     0     1
+settable     r12   k53   k54 ; k54 = "jxDz5WnXu3"
+settable     r11   k55   r12 ; k55 = "args"
+call          r9     3     2
+settable      r8   k56    r9 ; k56 = "Body"
+call          r7     2     1
+jmp         l118
+.label	l109
+move          r7    r6
+loadk         r8   k29 ; k29 = "SetCore"
+loadk         r9   k30 ; k30 = "SendNotification"
+newtable     r10     0     4
+settable     r10   k31   k57 ; k57 = "DISCORD"
+settable     r10   k33   k58 ; k58 = "Auto-Invite failed. " (truncated)
+settable     r10   k35   k36 ; k36 = "rbxassetid://9072448" (truncated)
+settable     r10   k37   k59 ; k59 = 10
+call          r7     4     1
+.label	l118
+newtable      r7     0    11
+settable      r7   k60    k7 ; k7 = true
+newtable      r8     0     3
+settable      r8   k61   k62 ; k62 = 5
+settable      r8   k63   k59 ; k59 = 10
+settable      r8   k64   k65 ; k65 = 0.2
+settable      r7   k66    r8 ; k66 = "BreastPhysics"
+settable      r7   k67   k68 ; k68 = 1
+settable      r7   k69    k7 ; k7 = true
+newtable      r8     0     3
+settable      r8   k61   k70 ; k70 = 3
+settable      r8   k63   k59 ; k59 = 10
+settable      r8   k64   k71 ; k71 = 0.1
+settable      r7   k72    r8 ; k72 = "CheeksPhysics"
+settable      r7   k73   k68 ; k68 = 1
+settable      r7   k74   k75 ; k75 = false
+settable      r7   k76   k75 ; k75 = false
+settable      r7   k77    k7 ; k7 = true
+settable      r7   k78    k7 ; k7 = true
+settable      r7   k79   k75 ; k75 = false
+gettable      r8    r0   k80 ; k80 = "BB_Settings"
+test          r8     1
+jmp         l142
+vararg        r8     2
+.label	l142
+test          r8     0
+jmp         l155
+getglobal     r9   k81 ; k81 = "next"
+move         r10    r7
+loadnil      r11   r11
+jmp         l152
+.label	l148
+gettable     r14    r8   r12
+eq             0   r14   k82 ; k82 = nil
+jmp         l152
+settable      r8   r12   r13
+.label	l152
+tforloop      r9     2
+jmp         l148
+jmp         l156
+.label	l155
+move          r8    r7
+.label	l156
+gettable      r9    r0   k80 ; k80 = "BB_Settings"
+test          r9     1
+jmp         l160
+settable      r0   k80    r8 ; k80 = "BB_Settings"
+.label	l160
+newtable      r9     0     4
+newtable     r10     0     2
+newtable     r11     2     0
+newtable     r12     1     0
+getglobal    r13   k83 ; k83 = "Vector3"
+gettable     r13   r13   k84 ; k84 = "new"
+loadk        r14   k52 ; k52 = 0
+loadk        r15   k85 ; k85 = 0.026
+loadk        r16   k52 ; k52 = 0
+call         r13     4     2
+getglobal    r14   k83 ; k83 = "Vector3"
+gettable     r14   r14   k84 ; k84 = "new"
+loadk        r15   k86 ; k86 = 0.93
+loadk        r16   k87 ; k87 = 0.907
+loadk        r17   k88 ; k88 = 0.904
+call         r14     4     0
+setlist      r12     0     1
+newtable     r13     1     0
+getglobal    r14   k83 ; k83 = "Vector3"
+gettable     r14   r14   k84 ; k84 = "new"
+loadk        r15   k52 ; k52 = 0
+loadk        r16   k89 ; k89 = -0.1
+loadk        r17   k52 ; k52 = 0
+call         r14     4     2
+getglobal    r15   k83 ; k83 = "Vector3"
+gettable     r15   r15   k84 ; k84 = "new"
+loadk        r16   k90 ; k90 = 1.356
+loadk        r17   k91 ; k91 = 1.33
+loadk        r18   k92 ; k92 = 1.327
+call         r15     4     0
+setlist      r13     0     1
+setlist      r11     2     1
+settable     r10   k93   r11 ; k93 = "BRST"
+newtable     r11     2     0
+newtable     r12     1     0
+getglobal    r13   k83 ; k83 = "Vector3"
+gettable     r13   r13   k84 ; k84 = "new"
+loadk        r14   k52 ; k52 = 0
+loadk        r15   k52 ; k52 = 0
+loadk        r16   k52 ; k52 = 0
+call         r13     4     2
+getglobal    r14   k83 ; k83 = "Vector3"
+gettable     r14   r14   k84 ; k84 = "new"
+loadk        r15   k94 ; k94 = 0.877
+loadk        r16   k95 ; k95 = 0.9
+loadk        r17   k96 ; k96 = 0.819
+call         r14     4     0
+setlist      r12     0     1
+newtable     r13     1     0
+getglobal    r14   k83 ; k83 = "Vector3"
+gettable     r14   r14   k84 ; k84 = "new"
+loadk        r15   k52 ; k52 = 0
+loadk        r16   k89 ; k89 = -0.1
+loadk        r17   k97 ; k97 = -0.05
+call         r14     4     2
+getglobal    r15   k83 ; k83 = "Vector3"
+gettable     r15   r15   k84 ; k84 = "new"
+loadk        r16   k98 ; k98 = 1.166
+loadk        r17   k99 ; k99 = 1.25
+loadk        r18  k100 ; k100 = 1.23
+call         r15     4     0
+setlist      r13     0     1
+setlist      r11     2     1
+settable     r10  k101   r11 ; k101 = "BRSTVisual"
+settable      r9  k102   r10 ; k102 = "BreastScales"
+newtable     r10     2     0
+newtable     r11     1     0
+getglobal    r12   k83 ; k83 = "Vector3"
+gettable     r12   r12   k84 ; k84 = "new"
+loadk        r13  k103 ; k103 = 0.83
+loadk        r14  k103 ; k103 = 0.83
+loadk        r15  k104 ; k104 = 0.9000000000000001
+call         r12     4     2
+getglobal    r13   k83 ; k83 = "Vector3"
+gettable     r13   r13   k84 ; k84 = "new"
+loadk        r14  k105 ; k105 = 1.2
+loadk        r15  k105 ; k105 = 1.2
+loadk        r16  k106 ; k106 = 1.269
+call         r13     4     0
+setlist      r11     0     1
+newtable     r12     1     0
+getglobal    r13   k83 ; k83 = "Vector3"
+gettable     r13   r13   k84 ; k84 = "new"
+loadk        r14   k71 ; k71 = 0.1
+loadk        r15   k65 ; k65 = 0.2
+loadk        r16   k52 ; k52 = 0
+call         r13     4     2
+getglobal    r14   k83 ; k83 = "Vector3"
+gettable     r14   r14   k84 ; k84 = "new"
+loadk        r15   k52 ; k52 = 0
+loadk        r16   k52 ; k52 = 0
+loadk        r17   k52 ; k52 = 0
+call         r14     4     0
+setlist      r12     0     1
+setlist      r10     2     1
+settable      r9  k107   r10 ; k107 = "CheekScales"
+closure      r10    f7
+settable      r9  k108   r10 ; k108 = "BreastScaler"
+closure      r10    f0
+settable      r9  k109   r10 ; k109 = "CheekScaler"
+move         r10    r2
+loadk        r11  k110 ; k110 = "https://raw.githubus" (truncated)
+loadk        r12  k111 ; k111 = "Spring"
+call         r10     3     2
+move         r11    r2
+loadk        r12  k112 ; k112 = "https://gist.githubu" (truncated)
+loadk        r13  k113 ; k113 = "FemaleRig"
+gettable     r14    r8   k74 ; k74 = "Collisions"
+call         r11     4     2
+closure      r12    f6
+closure      r13   f10
+move          r0   r12 ; upvalue declaration
+move          r0    r4 ; upvalue declaration
+closure      r14    f1
+closure      r15    f2
+closure      r16    f5
+move          r0   r11 ; upvalue declaration
+move          r0    r8 ; upvalue declaration
+move          r0    r9 ; upvalue declaration
+move          r0   r15 ; upvalue declaration
+move          r0   r14 ; upvalue declaration
+move          r0   r13 ; upvalue declaration
+getglobal    r17    k9 ; k9 = "game"
+self         r17   r17   k10 ; k10 = "GetService"
+loadk        r19  k114 ; k114 = "RunService"
+call         r17     3     2
+getglobal    r18    k9 ; k9 = "game"
+self         r18   r18   k10 ; k10 = "GetService"
+loadk        r20   k22 ; k22 = "Players"
+call         r18     3     2
+gettable     r19   r18   k23 ; k23 = "LocalPlayer"
+.label	l291
+test         r19     1
+jmp         l298
+gettable     r20   r18   k24 ; k24 = "ChildAdded"
+self         r20   r20   k25 ; k25 = "Wait"
+call         r20     2     1
+gettable     r19   r18   k23 ; k23 = "LocalPlayer"
+jmp         l291
+.label	l298
+closure      r20    f8
+move          r0   r10 ; upvalue declaration
+move          r0    r8 ; upvalue declaration
+move          r0   r17 ; upvalue declaration
+move          r0   r19 ; upvalue declaration
+gettable     r21    r8   k77 ; k77 = "Others"
+test         r21     0
+jmp         l307
+gettable     r21    r8   k78 ; k78 = "Me"
+.label	l307
+closure      r22   f11
+move          r0    r8 ; upvalue declaration
+move          r0   r18 ; upvalue declaration
+move          r0   r21 ; upvalue declaration
+move          r0   r16 ; upvalue declaration
+move          r0   r19 ; upvalue declaration
+move          r0   r20 ; upvalue declaration
+.label	l314
+getglobal    r23    k9 ; k9 = "game"
+gettable     r23   r23  k115 ; k115 = "GameId"
+eq             0   r23   k52 ; k52 = 0
+jmp         l322
+getglobal    r23  k116 ; k116 = "task"
+gettable     r23   r23  k117 ; k117 = "wait"
+call         r23     1     1
+jmp         l314
+.label	l322
+getglobal    r23    k9 ; k9 = "game"
+gettable     r23   r23  k115 ; k115 = "GameId"
+eq             0   r23  k118 ; k118 = 1359573625
+jmp         l372
+getglobal    r23  k119 ; k119 = "workspace"
+self         r23   r23  k120 ; k120 = "WaitForChild"
+loadk        r25  k121 ; k121 = "Live"
+getglobal    r26  k122 ; k122 = "math"
+gettable     r26   r26  k123 ; k123 = "huge"
+call         r23     4     2
+gettable     r24   r23   k24 ; k24 = "ChildAdded"
+self         r24   r24   k27 ; k27 = "Connect"
+move         r26   r22
+call         r24     3     1
+getglobal    r24  k124 ; k124 = "ipairs"
+self         r25   r23  k125 ; k125 = "GetChildren"
+call         r25     2     0
+call         r24     0     4
+jmp         l346
+.label	l341
+getglobal    r29  k116 ; k116 = "task"
+gettable     r29   r29  k126 ; k126 = "spawn"
+move         r30   r22
+move         r31   r28
+call         r29     3     1
+.label	l346
+tforloop     r24     2
+jmp         l341
+getglobal    r24  k119 ; k119 = "workspace"
+self         r24   r24  k120 ; k120 = "WaitForChild"
+loadk        r26  k127 ; k127 = "NPCs"
+getglobal    r27  k122 ; k122 = "math"
+gettable     r27   r27  k123 ; k123 = "huge"
+call         r24     4     2
+gettable     r25   r24   k24 ; k24 = "ChildAdded"
+self         r25   r25   k27 ; k27 = "Connect"
+move         r27   r22
+call         r25     3     1
+getglobal    r25  k124 ; k124 = "ipairs"
+self         r26   r24  k125 ; k125 = "GetChildren"
+call         r26     2     0
+call         r25     0     4
+jmp         l369
+.label	l363
+getglobal    r30  k116 ; k116 = "task"
+gettable     r30   r30  k126 ; k126 = "spawn"
+move         r31   r22
+move         r32   r29
+loadbool     r33     0     0
+call         r30     4     1
+.label	l369
+tforloop     r25     2
+jmp         l363
+jmp         l391
+.label	l372
+getglobal    r23  k119 ; k119 = "workspace"
+gettable     r23   r23  k128 ; k128 = "DescendantAdded"
+self         r23   r23   k27 ; k27 = "Connect"
+move         r25   r22
+call         r23     3     1
+getglobal    r23  k124 ; k124 = "ipairs"
+getglobal    r24  k119 ; k119 = "workspace"
+self         r24   r24  k129 ; k129 = "GetDescendants"
+call         r24     2     0
+call         r23     0     4
+jmp         l389
+.label	l383
+getglobal    r28  k116 ; k116 = "task"
+gettable     r28   r28  k126 ; k126 = "spawn"
+move         r29   r22
+move         r30   r27
+loadbool     r31     0     0
+call         r28     4     1
+.label	l389
+tforloop     r23     2
+jmp         l383
+.label	l391
+close         r0
+return        r0     1
+
+.function	main/f0
+
+.source	""
+.linedefined	0
+.lastlinedefined	0
+.numparams	3
+.is_vararg	0
+.maxstacksize	8
+
+.constant	k0	"Model"
+.constant	k1	"LeftCHK"
+.constant	k2	"Mesh"
+.constant	k3	"CheekScales"
+.constant	k4	1
+.constant	k5	"Lerp"
+.constant	k6	2
+.constant	k7	"Scale"
+.constant	k8	"Offset"
+.constant	k9	"RightCHK"
+
+gettable      r3    r1    k0 ; k0 = "Model"
+gettable      r3    r3    k1 ; k1 = "LeftCHK"
+gettable      r3    r3    k2 ; k2 = "Mesh"
+gettable      r4    r0    k3 ; k3 = "CheekScales"
+gettable      r4    r4    k4 ; k4 = 1
+gettable      r4    r4    k4 ; k4 = 1
+self          r4    r4    k5 ; k5 = "Lerp"
+gettable      r6    r0    k3 ; k3 = "CheekScales"
+gettable      r6    r6    k4 ; k4 = 1
+gettable      r6    r6    k6 ; k6 = 2
+move          r7    r2
+call          r4     4     2
+settable      r3    k7    r4 ; k7 = "Scale"
+gettable      r3    r1    k0 ; k0 = "Model"
+gettable      r3    r3    k1 ; k1 = "LeftCHK"
+gettable      r3    r3    k2 ; k2 = "Mesh"
+gettable      r4    r0    k3 ; k3 = "CheekScales"
+gettable      r4    r4    k6 ; k6 = 2
+gettable      r4    r4    k4 ; k4 = 1
+self          r4    r4    k5 ; k5 = "Lerp"
+gettable      r6    r0    k3 ; k3 = "CheekScales"
+gettable      r6    r6    k6 ; k6 = 2
+gettable      r6    r6    k6 ; k6 = 2
+move          r7    r2
+call          r4     4     2
+settable      r3    k8    r4 ; k8 = "Offset"
+gettable      r3    r1    k0 ; k0 = "Model"
+gettable      r3    r3    k9 ; k9 = "RightCHK"
+gettable      r3    r3    k2 ; k2 = "Mesh"
+gettable      r4    r0    k3 ; k3 = "CheekScales"
+gettable      r4    r4    k4 ; k4 = 1
+gettable      r4    r4    k4 ; k4 = 1
+self          r4    r4    k5 ; k5 = "Lerp"
+gettable      r6    r0    k3 ; k3 = "CheekScales"
+gettable      r6    r6    k4 ; k4 = 1
+gettable      r6    r6    k6 ; k6 = 2
+move          r7    r2
+call          r4     4     2
+settable      r3    k7    r4 ; k7 = "Scale"
+gettable      r3    r1    k0 ; k0 = "Model"
+gettable      r3    r3    k9 ; k9 = "RightCHK"
+gettable      r3    r3    k2 ; k2 = "Mesh"
+gettable      r4    r0    k3 ; k3 = "CheekScales"
+gettable      r4    r4    k6 ; k6 = 2
+gettable      r4    r4    k4 ; k4 = 1
+self          r4    r4    k5 ; k5 = "Lerp"
+gettable      r6    r0    k3 ; k3 = "CheekScales"
+gettable      r6    r6    k6 ; k6 = 2
+gettable      r6    r6    k6 ; k6 = 2
+move          r7    r2
+call          r4     4     2
+settable      r3    k8    r4 ; k8 = "Offset"
+return        r0     1
+
+.function	main/f1
+
+.source	""
+.linedefined	0
+.lastlinedefined	0
+.numparams	2
+.is_vararg	0
+.maxstacksize	4
+
+.constant	k0	"Instance"
+.constant	k1	"new"
+.constant	k2	"Weld"
+.constant	k3	"Parent"
+.constant	k4	"Part0"
+.constant	k5	"Part1"
+.constant	k6	"CFrame"
+.constant	k7	"C0"
+.constant	k8	"C1"
+
+getglobal     r2    k0 ; k0 = "Instance"
+gettable      r2    r2    k1 ; k1 = "new"
+loadk         r3    k2 ; k2 = "Weld"
+call          r2     2     2
+settable      r2    k3    r0 ; k3 = "Parent"
+settable      r2    k4    r0 ; k4 = "Part0"
+settable      r2    k5    r1 ; k5 = "Part1"
+getglobal     r3    k6 ; k6 = "CFrame"
+gettable      r3    r3    k1 ; k1 = "new"
+call          r3     1     2
+settable      r2    k7    r3 ; k7 = "C0"
+getglobal     r3    k6 ; k6 = "CFrame"
+gettable      r3    r3    k1 ; k1 = "new"
+call          r3     1     2
+settable      r2    k8    r3 ; k8 = "C1"
+return        r2     2
+
+.function	main/f2
+
+.source	""
+.linedefined	0
+.lastlinedefined	0
+.numparams	2
+.is_vararg	0
+.maxstacksize	12
+
+.constant	k0	"FindFirstChildOfClass"
+.constant	k1	"Shirt"
+.constant	k2	"Pants"
+.constant	k3	"ShirtTemplate"
+.constant	k4	"PantsTemplate"
+.constant	k5	"ipairs"
+.constant	k6	"GetDescendants"
+.constant	k7	"IsA"
+.constant	k8	"Decal"
+.constant	k9	"Name"
+.constant	k10	""
+.constant	k11	"Texture"
+
+self          r2    r0    k0 ; k0 = "FindFirstChildOfClas" (truncated)
+loadk         r4    k1 ; k1 = "Shirt"
+call          r2     3     2
+self          r3    r0    k0 ; k0 = "FindFirstChildOfClas" (truncated)
+loadk         r5    k2 ; k2 = "Pants"
+call          r3     3     2
+test          r2     0
+jmp          l10
+gettable      r2    r2    k3 ; k3 = "ShirtTemplate"
+.label	l10
+test          r3     0
+jmp          l13
+gettable      r3    r3    k4 ; k4 = "PantsTemplate"
+.label	l13
+getglobal     r4    k5 ; k5 = "ipairs"
+self          r5    r1    k6 ; k6 = "GetDescendants"
+call          r5     2     0
+call          r4     0     4
+jmp          l35
+.label	l18
+self          r9    r8    k7 ; k7 = "IsA"
+loadk        r11    k8 ; k8 = "Decal"
+call          r9     3     2
+test          r9     0
+jmp          l35
+gettable      r9    r8    k9 ; k9 = "Name"
+eq             0    r9    k1 ; k1 = "Shirt"
+jmp          l28
+testset       r9    r2     1
+jmp          l34
+.label	l28
+gettable      r9    r8    k9 ; k9 = "Name"
+eq             0    r9    k2 ; k2 = "Pants"
+jmp          l33
+testset       r9    r3     1
+jmp          l34
+.label	l33
+loadk         r9   k10 ; k10 = ""
+.label	l34
+settable      r8   k11    r9 ; k11 = "Texture"
+.label	l35
+tforloop      r4     2
+jmp          l18
+return        r0     1
+
+.function	main/f3
+
+.source	""
+.linedefined	0
+.lastlinedefined	0
+.numparams	1
+.is_vararg	2
+.maxstacksize	9
+
+.upvalue	null	0	false
+
+.constant	k0	"game"
+.constant	k1	"GetService"
+.constant	k2	"StarterGui"
+.constant	k3	10
+.constant	k4	"pcall"
+.constant	k5	1
+.constant	k6	"task"
+.constant	k7	"wait"
+.constant	k8	0
+
+getupval      r2    u0
+test          r2     1
+jmp           l8
+getglobal     r2    k0 ; k0 = "game"
+self          r2    r2    k1 ; k1 = "GetService"
+loadk         r4    k2 ; k2 = "StarterGui"
+call          r2     3     2
+.label	l8
+setupval      r2    u0
+getupval      r2    u0
+gettable      r2    r2    r0
+test          r2     0
+jmp          l36
+loadk         r2    k3 ; k3 = 10
+loadnil       r3    r3
+.label	l15
+loadnil       r4    r4
+getglobal     r5    k4 ; k4 = "pcall"
+getupval      r6    u0
+gettable      r6    r6    r0
+getupval      r7    u0
+vararg        r8     0
+call          r5     0     3
+move          r3    r6
+move          r4    r5
+test          r4     1
+jmp          l31
+sub           r2    r2    k5 ; k5 = 1
+getglobal     r5    k6 ; k6 = "task"
+gettable      r5    r5    k7 ; k7 = "wait"
+loadk         r6    k5 ; k5 = 1
+call          r5     2     1
+.label	l31
+test          r4     1
+jmp          l35
+eq             0    r2    k8 ; k8 = 0
+jmp          l15
+.label	l35
+return        r3     2
+.label	l36
+return        r0     1
+
+.function	main/f4
+
+.source	""
+.linedefined	0
+.lastlinedefined	0
+.numparams	0
+.is_vararg	0
+.maxstacksize	2
+
+.upvalue	null	0	false
+
+.constant	k0	"quetp"
+.constant	k1	"loadstring(game:HttpGet(\"https://gist.githubusercontent.com/htt-py/92db22eeefad0042a6da9117501ad827/raw/BBies.luau\"))()"
+
+getupval      r0    u0
+gettable      r0    r0    k0 ; k0 = "quetp"
+loadk         r1    k1 ; k1 = "loadstring(game:Http" (truncated)
+call          r0     2     1
+return        r0     1
+
+.function	main/f5
+
+.source	""
+.linedefined	0
+.lastlinedefined	0
+.numparams	2
+.is_vararg	0
+.maxstacksize	13
+
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+
+.constant	k0	"Clone"
+.constant	k1	"T"
+.constant	k2	"Torso"
+.constant	k3	"R"
+.constant	k4	"Right Leg"
+.constant	k5	"RightLeg"
+.constant	k6	"L"
+.constant	k7	"Left Leg"
+.constant	k8	"LeftLeg"
+.constant	k9	"UpperTorso"
+.constant	k10	"RightUpperLeg"
+.constant	k11	"LeftUpperLeg"
+.constant	k12	"WaitForChild"
+.constant	k13	"math"
+.constant	k14	"huge"
+.constant	k15	"Color"
+.constant	k16	"Breast"
+.constant	k17	"BreastSize"
+.constant	k18	"BreastScaler"
+.constant	k19	"Part"
+.constant	k20	"BRSTVisual"
+.constant	k21	"Destroy"
+.constant	k22	"Cheeks"
+.constant	k23	"CheeksSize"
+.constant	k24	"CheekScaler"
+.constant	k25	"Model"
+.constant	k26	"RightCHK"
+.constant	k27	"LeftCHK"
+.constant	k28	nil
+.constant	k29	"ChildAdded"
+.constant	k30	"Connect"
+.constant	k31	"next"
+.constant	k32	"BTJ"
+.constant	k33	"BJ"
+.constant	k34	"BUJ"
+.constant	k35	"BJJ"
+.constant	k36	"Parent"
+
+getupval      r2    u0
+self          r2    r2    k0 ; k0 = "Clone"
+call          r2     2     2
+newtable      r3     0     3
+gettable      r4    r2    k1 ; k1 = "T"
+gettable      r4    r4    k2 ; k2 = "Torso"
+settable      r3    k2    r4 ; k2 = "Torso"
+gettable      r4    r2    k3 ; k3 = "R"
+gettable      r4    r4    k4 ; k4 = "Right Leg"
+settable      r3    k5    r4 ; k5 = "RightLeg"
+gettable      r4    r2    k6 ; k6 = "L"
+gettable      r4    r4    k7 ; k7 = "Left Leg"
+settable      r3    k8    r4 ; k8 = "LeftLeg"
+newtable      r4     0     0
+test          r1     0
+jmp          l21
+settable      r4    k2    k2 ; k2 = "Torso"
+settable      r4    k5    k4 ; k4 = "Right Leg"
+settable      r4    k8    k7 ; k7 = "Left Leg"
+jmp          l24
+.label	l21
+settable      r4    k2    k9 ; k9 = "UpperTorso"
+settable      r4    k5   k10 ; k10 = "RightUpperLeg"
+settable      r4    k8   k11 ; k11 = "LeftUpperLeg"
+.label	l24
+self          r5    r0   k12 ; k12 = "WaitForChild"
+gettable      r7    r4    k2 ; k2 = "Torso"
+getglobal     r8   k13 ; k13 = "math"
+gettable      r8    r8   k14 ; k14 = "huge"
+call          r5     4     2
+settable      r4    k2    r5 ; k2 = "Torso"
+self          r5    r0   k12 ; k12 = "WaitForChild"
+gettable      r7    r4    k5 ; k5 = "RightLeg"
+getglobal     r8   k13 ; k13 = "math"
+gettable      r8    r8   k14 ; k14 = "huge"
+call          r5     4     2
+settable      r4    k5    r5 ; k5 = "RightLeg"
+self          r5    r0   k12 ; k12 = "WaitForChild"
+gettable      r7    r4    k8 ; k8 = "LeftLeg"
+getglobal     r8   k13 ; k13 = "math"
+gettable      r8    r8   k14 ; k14 = "huge"
+call          r5     4     2
+settable      r4    k8    r5 ; k8 = "LeftLeg"
+gettable      r5    r3    k2 ; k2 = "Torso"
+gettable      r6    r4    k2 ; k2 = "Torso"
+gettable      r6    r6   k15 ; k15 = "Color"
+settable      r5   k15    r6 ; k15 = "Color"
+getupval      r5    u1
+gettable      r5    r5   k16 ; k16 = "Breast"
+test          r5     0
+jmp          l67
+getupval      r5    u1
+gettable      r5    r5   k17 ; k17 = "BreastSize"
+test          r5     0
+jmp          l60
+getupval      r5    u2
+self          r5    r5   k18 ; k18 = "BreastScaler"
+gettable      r7    r3    k2 ; k2 = "Torso"
+getupval      r8    u1
+gettable      r8    r8   k17 ; k17 = "BreastSize"
+call          r5     4     1
+.label	l60
+gettable      r5    r3    k2 ; k2 = "Torso"
+gettable      r5    r5   k19 ; k19 = "Part"
+gettable      r5    r5   k20 ; k20 = "BRSTVisual"
+gettable      r6    r4    k2 ; k2 = "Torso"
+gettable      r6    r6   k15 ; k15 = "Color"
+settable      r5   k15    r6 ; k15 = "Color"
+jmp          l71
+.label	l67
+gettable      r5    r3    k2 ; k2 = "Torso"
+gettable      r5    r5   k19 ; k19 = "Part"
+self          r5    r5   k21 ; k21 = "Destroy"
+call          r5     2     1
+.label	l71
+getupval      r5    u1
+gettable      r5    r5   k22 ; k22 = "Cheeks"
+test          r5     0
+jmp          l98
+getupval      r5    u1
+gettable      r5    r5   k23 ; k23 = "CheeksSize"
+test          r5     0
+jmp          l85
+getupval      r5    u2
+self          r5    r5   k24 ; k24 = "CheekScaler"
+gettable      r7    r3    k2 ; k2 = "Torso"
+getupval      r8    u1
+gettable      r8    r8   k23 ; k23 = "CheeksSize"
+call          r5     4     1
+.label	l85
+gettable      r5    r3    k2 ; k2 = "Torso"
+gettable      r5    r5   k25 ; k25 = "Model"
+gettable      r5    r5   k26 ; k26 = "RightCHK"
+gettable      r6    r4    k5 ; k5 = "RightLeg"
+gettable      r6    r6   k15 ; k15 = "Color"
+settable      r5   k15    r6 ; k15 = "Color"
+gettable      r5    r3    k2 ; k2 = "Torso"
+gettable      r5    r5   k25 ; k25 = "Model"
+gettable      r5    r5   k27 ; k27 = "LeftCHK"
+gettable      r6    r4    k8 ; k8 = "LeftLeg"
+gettable      r6    r6   k15 ; k15 = "Color"
+settable      r5   k15    r6 ; k15 = "Color"
+jmp         l108
+.label	l98
+gettable      r5    r3    k2 ; k2 = "Torso"
+gettable      r5    r5   k25 ; k25 = "Model"
+gettable      r5    r5   k26 ; k26 = "RightCHK"
+self          r5    r5   k21 ; k21 = "Destroy"
+call          r5     2     1
+gettable      r5    r3    k2 ; k2 = "Torso"
+gettable      r5    r5   k25 ; k25 = "Model"
+gettable      r5    r5   k27 ; k27 = "LeftCHK"
+self          r5    r5   k21 ; k21 = "Destroy"
+call          r5     2     1
+.label	l108
+test          r1     0
+jmp         l123
+gettable      r5    r3    k5 ; k5 = "RightLeg"
+gettable      r6    r4    k5 ; k5 = "RightLeg"
+gettable      r6    r6   k15 ; k15 = "Color"
+settable      r5   k15    r6 ; k15 = "Color"
+gettable      r5    r3    k8 ; k8 = "LeftLeg"
+gettable      r6    r4    k8 ; k8 = "LeftLeg"
+gettable      r6    r6   k15 ; k15 = "Color"
+settable      r5   k15    r6 ; k15 = "Color"
+gettable      r5    r2    k3 ; k3 = "R"
+settable      r3    k5    r5 ; k5 = "RightLeg"
+gettable      r5    r2    k6 ; k6 = "L"
+settable      r3    k8    r5 ; k8 = "LeftLeg"
+jmp         l125
+.label	l123
+settable      r3    k5   k28 ; k28 = nil
+settable      r3    k8   k28 ; k28 = nil
+.label	l125
+gettable      r5    r2    k1 ; k1 = "T"
+settable      r3    k2    r5 ; k2 = "Torso"
+getupval      r5    u3
+move          r6    r0
+move          r7    r2
+call          r5     3     1
+gettable      r5    r0   k29 ; k29 = "ChildAdded"
+self          r5    r5   k30 ; k30 = "Connect"
+closure       r7    f0
+getupval      r0    u3 ; upvalue declaration
+move          r0    r0 ; upvalue declaration
+move          r0    r2 ; upvalue declaration
+call          r5     3     1
+getglobal     r5   k31 ; k31 = "next"
+move          r6    r3
+loadnil       r7    r7
+jmp         l146
+.label	l142
+getupval     r10    u4
+move         r11    r9
+gettable     r12    r4    r8
+call         r10     3     1
+.label	l146
+tforloop      r5     2
+jmp         l142
+getupval      r5    u1
+gettable      r5    r5   k22 ; k22 = "Cheeks"
+test          r5     0
+jmp         l157
+gettable      r5    r3    k2 ; k2 = "Torso"
+gettable      r5    r5    k2 ; k2 = "Torso"
+gettable      r5    r5   k32 ; k32 = "BTJ"
+gettable      r5    r5   k33 ; k33 = "BJ"
+settable      r3   k33    r5 ; k33 = "BJ"
+.label	l157
+getupval      r5    u1
+gettable      r5    r5   k16 ; k16 = "Breast"
+test          r5     0
+jmp         l166
+gettable      r5    r3    k2 ; k2 = "Torso"
+gettable      r5    r5    k2 ; k2 = "Torso"
+gettable      r5    r5   k34 ; k34 = "BUJ"
+gettable      r5    r5   k35 ; k35 = "BJJ"
+settable      r3   k35    r5 ; k35 = "BJJ"
+.label	l166
+getupval      r5    u5
+move          r6    r2
+call          r5     2     1
+settable      r2   k36    r0 ; k36 = "Parent"
+return        r3     2
+
+.function	main/f5/f0
+
+.source	""
+.linedefined	0
+.lastlinedefined	0
+.numparams	1
+.is_vararg	0
+.maxstacksize	4
+
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+
+.constant	k0	"IsA"
+.constant	k1	"Clothing"
+
+self          r1    r0    k0 ; k0 = "IsA"
+loadk         r3    k1 ; k1 = "Clothing"
+call          r1     3     2
+test          r1     0
+jmp          l10
+getupval      r1    u0
+getupval      r2    u1
+getupval      r3    u2
+call          r1     3     1
+.label	l10
+return        r0     1
+
+.function	main/f6
+
+.source	""
+.linedefined	0
+.lastlinedefined	0
+.numparams	0
+.is_vararg	0
+.maxstacksize	9
+
+.constant	k0	1
+.constant	k1	"math"
+.constant	k2	"random"
+.constant	k3	10
+.constant	k4	20
+.constant	k5	"string"
+.constant	k6	"char"
+.constant	k7	32
+.constant	k8	126
+.constant	k9	"table"
+.constant	k10	"concat"
+
+newtable      r0     0     0
+loadk         r1    k0 ; k0 = 1
+getglobal     r2    k1 ; k1 = "math"
+gettable      r2    r2    k2 ; k2 = "random"
+loadk         r3    k3 ; k3 = 10
+loadk         r4    k4 ; k4 = 20
+call          r2     3     2
+loadk         r3    k0 ; k0 = 1
+forprep       r1   l19
+.label	l10
+getglobal     r5    k5 ; k5 = "string"
+gettable      r5    r5    k6 ; k6 = "char"
+getglobal     r6    k1 ; k1 = "math"
+gettable      r6    r6    k2 ; k2 = "random"
+loadk         r7    k7 ; k7 = 32
+loadk         r8    k8 ; k8 = 126
+call          r6     3     0
+call          r5     0     2
+settable      r0    r4    r5
+.label	l19
+forloop       r1   l10
+getglobal     r1    k9 ; k9 = "table"
+gettable      r1    r1   k10 ; k10 = "concat"
+move          r2    r0
+tailcall      r1     2
+return        r1     0
+
+.function	main/f7
+
+.source	""
+.linedefined	0
+.lastlinedefined	0
+.numparams	3
+.is_vararg	0
+.maxstacksize	8
+
+.constant	k0	"Part"
+.constant	k1	"Mesh"
+.constant	k2	"BreastScales"
+.constant	k3	"BRST"
+.constant	k4	1
+.constant	k5	2
+.constant	k6	"Lerp"
+.constant	k7	"Scale"
+.constant	k8	"Offset"
+.constant	k9	"BRSTVisual"
+
+gettable      r3    r1    k0 ; k0 = "Part"
+gettable      r3    r3    k1 ; k1 = "Mesh"
+gettable      r4    r0    k2 ; k2 = "BreastScales"
+gettable      r4    r4    k3 ; k3 = "BRST"
+gettable      r4    r4    k4 ; k4 = 1
+gettable      r4    r4    k5 ; k5 = 2
+self          r4    r4    k6 ; k6 = "Lerp"
+gettable      r6    r0    k2 ; k2 = "BreastScales"
+gettable      r6    r6    k3 ; k3 = "BRST"
+gettable      r6    r6    k5 ; k5 = 2
+gettable      r6    r6    k5 ; k5 = 2
+move          r7    r2
+call          r4     4     2
+settable      r3    k7    r4 ; k7 = "Scale"
+gettable      r3    r1    k0 ; k0 = "Part"
+gettable      r3    r3    k1 ; k1 = "Mesh"
+gettable      r4    r0    k2 ; k2 = "BreastScales"
+gettable      r4    r4    k3 ; k3 = "BRST"
+gettable      r4    r4    k4 ; k4 = 1
+gettable      r4    r4    k4 ; k4 = 1
+self          r4    r4    k6 ; k6 = "Lerp"
+gettable      r6    r0    k2 ; k2 = "BreastScales"
+gettable      r6    r6    k3 ; k3 = "BRST"
+gettable      r6    r6    k5 ; k5 = 2
+gettable      r6    r6    k4 ; k4 = 1
+move          r7    r2
+call          r4     4     2
+settable      r3    k8    r4 ; k8 = "Offset"
+gettable      r3    r1    k0 ; k0 = "Part"
+gettable      r3    r3    k9 ; k9 = "BRSTVisual"
+gettable      r3    r3    k1 ; k1 = "Mesh"
+gettable      r4    r0    k2 ; k2 = "BreastScales"
+gettable      r4    r4    k9 ; k9 = "BRSTVisual"
+gettable      r4    r4    k4 ; k4 = 1
+gettable      r4    r4    k5 ; k5 = 2
+self          r4    r4    k6 ; k6 = "Lerp"
+gettable      r6    r0    k2 ; k2 = "BreastScales"
+gettable      r6    r6    k9 ; k9 = "BRSTVisual"
+gettable      r6    r6    k5 ; k5 = 2
+gettable      r6    r6    k5 ; k5 = 2
+move          r7    r2
+call          r4     4     2
+settable      r3    k7    r4 ; k7 = "Scale"
+gettable      r3    r1    k0 ; k0 = "Part"
+gettable      r3    r3    k9 ; k9 = "BRSTVisual"
+gettable      r3    r3    k1 ; k1 = "Mesh"
+gettable      r4    r0    k2 ; k2 = "BreastScales"
+gettable      r4    r4    k9 ; k9 = "BRSTVisual"
+gettable      r4    r4    k4 ; k4 = 1
+gettable      r4    r4    k4 ; k4 = 1
+self          r4    r4    k6 ; k6 = "Lerp"
+gettable      r6    r0    k2 ; k2 = "BreastScales"
+gettable      r6    r6    k9 ; k9 = "BRSTVisual"
+gettable      r6    r6    k5 ; k5 = 2
+gettable      r6    r6    k4 ; k4 = 1
+move          r7    r2
+call          r4     4     2
+settable      r3    k8    r4 ; k8 = "Offset"
+return        r0     1
+
+.function	main/f8
+
+.source	""
+.linedefined	0
+.lastlinedefined	0
+.numparams	1
+.is_vararg	0
+.maxstacksize	12
+
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+
+.constant	k0	"Torso"
+.constant	k1	"BJ"
+.constant	k2	"new"
+.constant	k3	"CheeksPhysics"
+.constant	k4	"Target"
+.constant	k5	"Speed"
+.constant	k6	"Damper"
+.constant	k7	"C0"
+.constant	k8	"BJJ"
+.constant	k9	"BreastPhysics"
+.constant	k10	"Position"
+.constant	k11	"Y"
+.constant	k12	"Stepped"
+.constant	k13	"Connect"
+
+gettable      r1    r0    k0 ; k0 = "Torso"
+loadnil       r2    r7
+gettable      r8    r0    k1 ; k1 = "BJ"
+test          r8     0
+jmp          l24
+gettable      r2    r0    k1 ; k1 = "BJ"
+getupval      r8    u0
+gettable      r8    r8    k2 ; k2 = "new"
+call          r8     1     2
+move          r6    r8
+getupval      r8    u1
+gettable      r8    r8    k3 ; k3 = "CheeksPhysics"
+gettable      r8    r8    k4 ; k4 = "Target"
+settable      r6    k4    r8 ; k4 = "Target"
+getupval      r8    u1
+gettable      r8    r8    k3 ; k3 = "CheeksPhysics"
+gettable      r8    r8    k5 ; k5 = "Speed"
+settable      r6    k5    r8 ; k5 = "Speed"
+getupval      r8    u1
+gettable      r8    r8    k3 ; k3 = "CheeksPhysics"
+gettable      r8    r8    k6 ; k6 = "Damper"
+settable      r6    k6    r8 ; k6 = "Damper"
+gettable      r5    r2    k7 ; k7 = "C0"
+.label	l24
+gettable      r8    r0    k8 ; k8 = "BJJ"
+test          r8     0
+jmp          l45
+gettable      r3    r0    k8 ; k8 = "BJJ"
+getupval      r8    u0
+gettable      r8    r8    k2 ; k2 = "new"
+call          r8     1     2
+move          r7    r8
+getupval      r8    u1
+gettable      r8    r8    k9 ; k9 = "BreastPhysics"
+gettable      r8    r8    k4 ; k4 = "Target"
+settable      r7    k4    r8 ; k4 = "Target"
+getupval      r8    u1
+gettable      r8    r8    k9 ; k9 = "BreastPhysics"
+gettable      r8    r8    k5 ; k5 = "Speed"
+settable      r7    k5    r8 ; k5 = "Speed"
+getupval      r8    u1
+gettable      r8    r8    k9 ; k9 = "BreastPhysics"
+gettable      r8    r8    k6 ; k6 = "Damper"
+settable      r7    k6    r8 ; k6 = "Damper"
+gettable      r4    r3    k7 ; k7 = "C0"
+.label	l45
+gettable      r8    r1   k10 ; k10 = "Position"
+gettable      r8    r8   k11 ; k11 = "Y"
+getupval      r9    u2
+gettable      r9    r9   k12 ; k12 = "Stepped"
+self          r9    r9   k13 ; k13 = "Connect"
+closure      r11    f0
+getupval      r0    u3 ; upvalue declaration
+move          r0    r1 ; upvalue declaration
+move          r0    r8 ; upvalue declaration
+move          r0    r7 ; upvalue declaration
+move          r0    r6 ; upvalue declaration
+move          r0    r3 ; upvalue declaration
+move          r0    r4 ; upvalue declaration
+move          r0    r2 ; upvalue declaration
+move          r0    r5 ; upvalue declaration
+call          r9     3     1
+return        r0     1
+
+.function	main/f8/f0
+
+.source	""
+.linedefined	0
+.lastlinedefined	0
+.numparams	2
+.is_vararg	0
+.maxstacksize	4
+
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+
+.constant	k0	"task"
+.constant	k1	"spawn"
+
+getglobal     r2    k0 ; k0 = "task"
+gettable      r2    r2    k1 ; k1 = "spawn"
+closure       r3    f0
+getupval      r0    u0 ; upvalue declaration
+getupval      r0    u1 ; upvalue declaration
+getupval      r0    u2 ; upvalue declaration
+getupval      r0    u3 ; upvalue declaration
+move          r0    r1 ; upvalue declaration
+getupval      r0    u4 ; upvalue declaration
+getupval      r0    u5 ; upvalue declaration
+getupval      r0    u6 ; upvalue declaration
+getupval      r0    u7 ; upvalue declaration
+getupval      r0    u8 ; upvalue declaration
+call          r2     2     1
+return        r0     1
+
+.function	main/f8/f0/f0
+
+.source	""
+.linedefined	0
+.lastlinedefined	0
+.numparams	0
+.is_vararg	0
+.maxstacksize	10
+
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+
+.constant	k0	"Character"
+.constant	k1	"workspace"
+.constant	k2	"CurrentCamera"
+.constant	k3	"FindFirstChild"
+.constant	k4	"HumanoidRootPart"
+.constant	k5	"Position"
+.constant	k6	"CFrame"
+.constant	k7	"Magnitude"
+.constant	k8	50
+.constant	k9	"Y"
+.constant	k10	"TimeSkip"
+.constant	k11	"Impulse"
+.constant	k12	"new"
+.constant	k13	0
+.constant	k14	"Velocity"
+.constant	k15	10
+.constant	k16	-0.02
+.constant	k17	"Angles"
+.constant	k18	"math"
+.constant	k19	"rad"
+.constant	k20	-10
+.constant	k21	"C0"
+.constant	k22	-0.05
+.constant	k23	2
+
+getupval      r0    u0
+test          r0     0
+jmp         l112
+getupval      r0    u0
+gettable      r0    r0    k0 ; k0 = "Character"
+test          r0     0
+jmp         l112
+getglobal     r0    k1 ; k1 = "workspace"
+gettable      r0    r0    k2 ; k2 = "CurrentCamera"
+test          r0     0
+jmp         l112
+getglobal     r0    k1 ; k1 = "workspace"
+gettable      r0    r0    k2 ; k2 = "CurrentCamera"
+getupval      r1    u0
+gettable      r1    r1    k0 ; k0 = "Character"
+self          r1    r1    k3 ; k3 = "FindFirstChild"
+loadk         r3    k4 ; k4 = "HumanoidRootPart"
+call          r1     3     2
+test          r1     0
+jmp         l112
+gettable      r2    r1    k5 ; k5 = "Position"
+gettable      r3    r0    k6 ; k6 = "CFrame"
+gettable      r3    r3    k5 ; k5 = "Position"
+sub           r2    r2    r3
+gettable      r2    r2    k7 ; k7 = "Magnitude"
+lt             0    r2    k8 ; k8 = 50
+jmp         l112
+getupval      r2    u1
+gettable      r2    r2    k5 ; k5 = "Position"
+gettable      r2    r2    k9 ; k9 = "Y"
+getupval      r3    u2
+sub           r3    r3    r2
+setupval      r2    u2
+getupval      r4    u3
+test          r4     0
+jmp          l45
+getupval      r4    u3
+self          r4    r4   k10 ; k10 = "TimeSkip"
+getupval      r6    u4
+call          r4     3     1
+getupval      r4    u3
+self          r4    r4   k11 ; k11 = "Impulse"
+move          r6    r3
+call          r4     3     1
+.label	l45
+getupval      r4    u5
+test          r4     0
+jmp          l56
+getupval      r4    u5
+self          r4    r4   k10 ; k10 = "TimeSkip"
+getupval      r6    u4
+call          r4     3     1
+getupval      r4    u5
+self          r4    r4   k11 ; k11 = "Impulse"
+move          r6    r3
+call          r4     3     1
+.label	l56
+getupval      r4    u6
+test          r4     0
+jmp          l84
+getupval      r4    u6
+getupval      r5    u7
+getglobal     r6    k6 ; k6 = "CFrame"
+gettable      r6    r6   k12 ; k12 = "new"
+loadk         r7   k13 ; k13 = 0
+getupval      r8    u3
+gettable      r8    r8   k14 ; k14 = "Velocity"
+div           r8    r8   k15 ; k15 = 10
+mul           r8   k16    r8 ; k16 = -0.02
+loadk         r9   k13 ; k13 = 0
+call          r6     4     2
+mul           r5    r5    r6
+getglobal     r6    k6 ; k6 = "CFrame"
+gettable      r6    r6   k17 ; k17 = "Angles"
+getglobal     r7   k18 ; k18 = "math"
+gettable      r7    r7   k19 ; k19 = "rad"
+getupval      r8    u3
+gettable      r8    r8   k14 ; k14 = "Velocity"
+call          r7     2     2
+mul           r7   k20    r7 ; k20 = -10
+loadk         r8   k13 ; k13 = 0
+loadk         r9   k13 ; k13 = 0
+call          r6     4     2
+mul           r5    r5    r6
+settable      r4   k21    r5 ; k21 = "C0"
+.label	l84
+getupval      r4    u8
+test          r4     0
+jmp         l112
+getupval      r4    u8
+getupval      r5    u9
+getglobal     r6    k6 ; k6 = "CFrame"
+gettable      r6    r6   k12 ; k12 = "new"
+loadk         r7   k13 ; k13 = 0
+getupval      r8    u5
+gettable      r8    r8   k14 ; k14 = "Velocity"
+div           r8    r8   k15 ; k15 = 10
+mul           r8   k22    r8 ; k22 = -0.05
+loadk         r9   k13 ; k13 = 0
+call          r6     4     2
+mul           r5    r5    r6
+getglobal     r6    k6 ; k6 = "CFrame"
+gettable      r6    r6   k17 ; k17 = "Angles"
+getglobal     r7   k18 ; k18 = "math"
+gettable      r7    r7   k19 ; k19 = "rad"
+getupval      r8    u5
+gettable      r8    r8   k14 ; k14 = "Velocity"
+call          r7     2     2
+mul           r7   k23    r7 ; k23 = 2
+loadk         r8   k13 ; k13 = 0
+loadk         r9   k13 ; k13 = 0
+call          r6     4     2
+mul           r5    r5    r6
+settable      r4   k21    r5 ; k21 = "C0"
+.label	l112
+return        r0     1
+
+.function	main/f9
+
+.source	""
+.linedefined	0
+.lastlinedefined	0
+.numparams	2
+.is_vararg	2
+.maxstacksize	9
+
+.upvalue	null	0	false
+
+.constant	k0	"pcall"
+.constant	k1	"loadstring"
+.constant	k2	"game"
+.constant	k3	"HttpGet"
+.constant	k4	1
+.constant	k5	false
+.constant	k6	"OnError"
+.constant	k7	"printconsole"
+.constant	k8	"print"
+.constant	k9	"type"
+.constant	k10	2
+.constant	k11	"string"
+.constant	k12	"JSONEncode"
+.constant	k13	"table"
+.constant	k14	"remove"
+.constant	k15	"unpack"
+
+newtable      r3     0     0
+getglobal     r4    k0 ; k0 = "pcall"
+getglobal     r5    k1 ; k1 = "loadstring"
+getglobal     r6    k2 ; k2 = "game"
+self          r6    r6    k3 ; k3 = "HttpGet"
+move          r8    r0
+call          r6     3     2
+move          r7    r1
+call          r5     3     2
+vararg        r6     0
+call          r4     0     0
+setlist       r3     0     1
+gettable      r4    r3    k4 ; k4 = 1
+eq             0    r4    k5 ; k5 = false
+jmp          l38
+getglobal     r4    k6 ; k6 = "OnError"
+test          r4     0
+jmp          l21
+getglobal     r4    k6 ; k6 = "OnError"
+call          r4     1     1
+.label	l21
+getglobal     r4    k7 ; k7 = "printconsole"
+test          r4     1
+jmp          l25
+getglobal     r4    k8 ; k8 = "print"
+.label	l25
+getglobal     r5    k9 ; k9 = "type"
+gettable      r6    r3   k10 ; k10 = 2
+call          r5     2     2
+eq             0    r5   k11 ; k11 = "string"
+jmp          l33
+gettable      r5    r3   k10 ; k10 = 2
+test          r5     1
+jmp          l37
+.label	l33
+getupval      r5    u0
+self          r5    r5   k12 ; k12 = "JSONEncode"
+move          r7    r3
+call          r5     3     2
+.label	l37
+call          r4     2     1
+.label	l38
+getglobal     r4   k13 ; k13 = "table"
+gettable      r4    r4   k14 ; k14 = "remove"
+move          r5    r3
+loadk         r6    k4 ; k4 = 1
+call          r4     3     1
+getglobal     r4   k15 ; k15 = "unpack"
+move          r5    r3
+tailcall      r4     2
+return        r4     0
+
+.function	main/f10
+
+.source	""
+.linedefined	0
+.lastlinedefined	0
+.numparams	1
+.is_vararg	0
+.maxstacksize	7
+
+.upvalue	null	0	false
+.upvalue	null	0	false
+
+.constant	k0	"Name"
+.constant	k1	"ipairs"
+.constant	k2	"GetDescendants"
+.constant	k3	"protgui"
+.constant	k4	"is_sirhurt_closure"
+.constant	k5	"syn"
+.constant	k6	"DrawingImmediate"
+
+getupval      r1    u0
+call          r1     1     2
+settable      r0    k0    r1 ; k0 = "Name"
+getglobal     r1    k1 ; k1 = "ipairs"
+self          r2    r0    k2 ; k2 = "GetDescendants"
+call          r2     2     0
+call          r1     0     4
+jmp          l12
+.label	l9
+getupval      r6    u0
+call          r6     1     2
+settable      r5    k0    r6 ; k0 = "Name"
+.label	l12
+tforloop      r1     2
+jmp           l9
+getupval      r1    u1
+gettable      r1    r1    k3 ; k3 = "protgui"
+test          r1     0
+jmp          l31
+getglobal     r1    k4 ; k4 = "is_sirhurt_closure"
+test          r1     1
+jmp          l31
+getglobal     r1    k5 ; k5 = "syn"
+test          r1     0
+jmp          l27
+getglobal     r1    k6 ; k6 = "DrawingImmediate"
+test          r1     1
+jmp          l31
+.label	l27
+getupval      r1    u1
+gettable      r1    r1    k3 ; k3 = "protgui"
+move          r2    r0
+call          r1     2     1
+.label	l31
+return        r0     1
+
+.function	main/f11
+
+.source	""
+.linedefined	0
+.lastlinedefined	0
+.numparams	2
+.is_vararg	0
+.maxstacksize	8
+
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+.upvalue	null	0	false
+
+.constant	k0	"IsA"
+.constant	k1	"Model"
+.constant	k2	"Others"
+.constant	k3	"Me"
+.constant	k4	"GetPlayerFromCharacter"
+.constant	k5	"LocalPlayer"
+.constant	k6	nil
+.constant	k7	"task"
+.constant	k8	"delay"
+.constant	k9	30
+.constant	k10	"cancel"
+.constant	k11	"coroutine"
+.constant	k12	"running"
+.constant	k13	"FindFirstChildWhichIsA"
+.constant	k14	"Humanoid"
+.constant	k15	"wait"
+.constant	k16	"ForceAllRigs"
+.constant	k17	"FindFirstChild"
+.constant	k18	"CustomRig"
+.constant	k19	"RigType"
+.constant	k20	"Enum"
+.constant	k21	"HumanoidRigType"
+.constant	k22	"R6"
+.constant	k23	"Breast"
+.constant	k24	"Cheeks"
+.constant	k25	"Simulate_Physics_On_LocalPlayer_Only"
+
+self          r2    r0    k0 ; k0 = "IsA"
+loadk         r4    k1 ; k1 = "Model"
+call          r2     3     2
+test          r2     0
+jmp         l117
+getupval      r2    u0
+gettable      r2    r2    k2 ; k2 = "Others"
+test          r2     1
+jmp          l15
+getupval      r2    u0
+gettable      r2    r2    k3 ; k3 = "Me"
+test          r2     1
+jmp          l15
+return        r0     1
+.label	l15
+loadnil       r2    r2
+getupval      r3    u1
+self          r3    r3    k4 ; k4 = "GetPlayerFromCharact" (truncated)
+move          r5    r0
+call          r3     3     2
+move          r2    r3
+getupval      r3    u2
+test          r3     1
+jmp          l41
+getupval      r3    u0
+gettable      r3    r3    k2 ; k2 = "Others"
+test          r3     0
+jmp          l32
+getupval      r3    u1
+gettable      r3    r3    k5 ; k5 = "LocalPlayer"
+eq             1    r2    r3
+jmp          l40
+.label	l32
+getupval      r3    u0
+gettable      r3    r3    k3 ; k3 = "Me"
+test          r3     0
+jmp          l41
+getupval      r3    u1
+gettable      r3    r3    k5 ; k5 = "LocalPlayer"
+eq             1    r2    r3
+jmp          l41
+.label	l40
+return        r0     1
+.label	l41
+eq             0    r1    k6 ; k6 = nil
+jmp          l44
+loadbool      r1     1     0
+.label	l44
+getglobal     r3    k7 ; k7 = "task"
+gettable      r3    r3    k8 ; k8 = "delay"
+loadk         r4    k9 ; k9 = 30
+getglobal     r5    k7 ; k7 = "task"
+gettable      r5    r5   k10 ; k10 = "cancel"
+getglobal     r6   k11 ; k11 = "coroutine"
+gettable      r6    r6   k12 ; k12 = "running"
+call          r6     1     0
+call          r3     0     1
+loadnil       r3    r3
+.label	l54
+self          r4    r0   k13 ; k13 = "FindFirstChildWhichI" (truncated)
+loadk         r6   k14 ; k14 = "Humanoid"
+call          r4     3     2
+move          r3    r4
+test          r3     1
+jmp          l63
+getglobal     r4    k7 ; k7 = "task"
+gettable      r4    r4   k15 ; k15 = "wait"
+call          r4     1     1
+.label	l63
+test          r3     0
+jmp          l54
+getupval      r4    u0
+gettable      r4    r4   k16 ; k16 = "ForceAllRigs"
+test          r4     1
+jmp          l75
+self          r4    r0   k17 ; k17 = "FindFirstChild"
+loadk         r6   k18 ; k18 = "CustomRig"
+call          r4     3     2
+test          r4     0
+jmp          l75
+return        r0     1
+.label	l75
+getupval      r4    u3
+move          r5    r0
+gettable      r6    r3   k19 ; k19 = "RigType"
+getglobal     r7   k20 ; k20 = "Enum"
+gettable      r7    r7   k21 ; k21 = "HumanoidRigType"
+gettable      r7    r7   k22 ; k22 = "R6"
+eq             1    r6    r7
+jmp          l84
+loadbool      r6     0     1
+.label	l84
+loadbool      r6     1     0
+call          r4     3     2
+test          r1     0
+jmp         l117
+getupval      r5    u0
+gettable      r5    r5   k23 ; k23 = "Breast"
+test          r5     1
+jmp          l97
+getupval      r5    u0
+gettable      r5    r5   k24 ; k24 = "Cheeks"
+test          r5     1
+jmp          l97
+return        r0     1
+.label	l97
+getupval      r5    u0
+gettable      r5    r5   k25 ; k25 = "Simulate_Physics_On_" (truncated)
+test          r5     0
+jmp         l114
+test          r2     1
+jmp         l108
+getupval      r5    u1
+self          r5    r5    k4 ; k4 = "GetPlayerFromCharact" (truncated)
+move          r7    r0
+call          r5     3     2
+move          r2    r5
+.label	l108
+test          r2     0
+jmp         l113
+getupval      r5    u4
+eq             1    r2    r5
+jmp         l114
+.label	l113
+return        r0     1
+.label	l114
+getupval      r5    u5
+move          r6    r4
+call          r5     2     1
+.label	l117
+return        r0     1
+
