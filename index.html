@@ -6,6 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Access</title>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
 html,
 body {
@@ -160,10 +162,15 @@ body.glitch {
 <body>
 
 <div id="screen">
+
     <div id="output"></div>
 
     <div class="input-line">
-        <span class="prompt">guest@access:~$&nbsp;</span>
+
+        <span class="prompt" id="prompt">
+            guest@access:~$&nbsp;
+        </span>
+
         <input
             id="input"
             type="text"
@@ -171,103 +178,668 @@ body.glitch {
             spellcheck="false"
             autofocus
         >
+
         <span class="cursor"></span>
+
     </div>
+
 </div>
 
 <script>
 "use strict";
 
-const output = document.getElementById("output");
-const input = document.getElementById("input");
-const screen = document.getElementById("screen");
+/* Supabase configuration */
 
-const STORAGE_KEY = "access_terminal_users";
+const SUPABASE_URL =
+    "https://otiiqsbhoghghjvwfjtw.supabase.co";
+
+const SUPABASE_ANON_KEY =
+    "sb_publishable_g3hToWdNuDqUArfAJBimRg_NwC8aRs2";
+
+
+const output =
+    document.getElementById("output");
+
+const input =
+    document.getElementById("input");
+
+const screen =
+    document.getElementById("screen");
+
+const prompt =
+    document.getElementById("prompt");
+
+
+const supabase =
+    window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY
+    );
+
 
 let currentUser = null;
+let currentUsername = null;
+
 let sessionStart = Date.now();
+
 let commandHistory = [];
 let historyIndex = 0;
 
+let forumChannel = null;
+
+
+/*
+    Username accounts use an internal email address
+    so Supabase Auth can handle passwords.
+
+    The user only sees the username.
+*/
+
+const EMAIL_DOMAIN =
+    "access-terminal.invalid";
+
+
 function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+
+    return new Promise(
+        resolve => setTimeout(resolve, ms)
+    );
 }
+
 
 function print(text = "", className = "") {
-    const element = document.createElement("div");
 
-    element.className = "line " + className;
-    element.textContent = text;
+    const element =
+        document.createElement("div");
+
+    element.className =
+        "line " + className;
+
+    element.textContent =
+        text;
 
     output.appendChild(element);
-    screen.scrollTop = screen.scrollHeight;
+
+    screen.scrollTop =
+        screen.scrollHeight;
 }
 
+
 function clearScreen() {
+
     output.innerHTML = "";
+
     return "";
 }
 
-function getUsers() {
-    try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-    } catch {
-        return {};
-    }
+
+function updatePrompt() {
+
+    prompt.textContent =
+        (currentUsername || "guest") +
+        "@access:~$ ";
 }
 
-function saveUsers(users) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+
+function usernameEmail(username) {
+
+    return (
+        username.toLowerCase() +
+        "@" +
+        EMAIL_DOMAIN
+    );
 }
+
+
+function validUsername(username) {
+
+    return /^[A-Za-z0-9_]{3,24}$/.test(username);
+}
+
+
+function validPassword(password) {
+
+    return password.length >= 6;
+}
+
+
+/*
+    Load the currently authenticated user.
+*/
+
+async function loadSession() {
+
+    const result =
+        await supabase.auth.getSession();
+
+    if (
+        result.data &&
+        result.data.session
+    ) {
+
+        currentUser =
+            result.data.session.user;
+
+        await loadProfile();
+    }
+
+    updatePrompt();
+}
+
+
+/*
+    Load username from profiles.
+*/
+
+async function loadProfile() {
+
+    if (!currentUser)
+        return;
+
+    const result =
+        await supabase
+            .from("profiles")
+            .select("username,name")
+            .eq("id", currentUser.id)
+            .maybeSingle();
+
+
+    if (result.data) {
+
+        currentUsername =
+            result.data.username ||
+            result.data.name ||
+            null;
+
+    } else {
+
+        currentUsername =
+            currentUser.user_metadata?.username ||
+            null;
+    }
+
+    updatePrompt();
+}
+
+
+/*
+    Sign up.
+
+    Usage:
+
+    Signup username password
+*/
 
 async function signup(args) {
 
     if (args.length < 2) {
-        return "USAGE: Signup [user] [password]";
+
+        return (
+            "USAGE: Signup [user] [password]"
+        );
     }
 
-    const username = args[0];
-    const password = args.slice(1).join(" ");
 
-    const users = getUsers();
+    const username =
+        args[0];
 
-    if (users[username]) {
-        return "ERROR: USER ALREADY EXISTS.";
+    const password =
+        args.slice(1).join(" ");
+
+
+    if (!validUsername(username)) {
+
+        return (
+            "ERROR: INVALID USERNAME.\n" +
+            "USE 3-24 CHARACTERS.\n" +
+            "LETTERS, NUMBERS AND _ ONLY."
+        );
     }
 
-    users[username] = password;
-    saveUsers(users);
 
-    return "ACCOUNT CREATED: " + username;
+    if (!validPassword(password)) {
+
+        return (
+            "ERROR: PASSWORD MUST BE " +
+            "AT LEAST 6 CHARACTERS."
+        );
+    }
+
+
+    const existing =
+        await supabase
+            .from("profiles")
+            .select("id")
+            .eq("username", username)
+            .maybeSingle();
+
+
+    if (existing.error) {
+
+        return (
+            "DATABASE ERROR: " +
+            existing.error.message
+        );
+    }
+
+
+    if (existing.data) {
+
+        return (
+            "ERROR: USER ALREADY EXISTS."
+        );
+    }
+
+
+    const email =
+        usernameEmail(username);
+
+
+    const result =
+        await supabase.auth.signUp({
+
+            email: email,
+
+            password: password,
+
+            options: {
+
+                data: {
+                    username: username
+                }
+
+            }
+
+        });
+
+
+    if (result.error) {
+
+        return (
+            "SIGNUP ERROR: " +
+            result.error.message
+        );
+    }
+
+
+    if (!result.data.user) {
+
+        return "SIGNUP FAILED.";
+    }
+
+
+    currentUser =
+        result.data.user;
+
+
+    currentUsername =
+        username;
+
+
+    updatePrompt();
+
+
+    /*
+        The database trigger creates the profile
+        automatically from user metadata.
+    */
+
+    await sleep(150);
+
+
+    return (
+        "ACCOUNT CREATED.\n" +
+        "USER: " +
+        username
+    );
 }
+
+
+/*
+    Login.
+
+    Usage:
+
+    Login username password
+*/
 
 async function login(args) {
 
     if (args.length < 2) {
-        return "USAGE: Login [user] [password]";
+
+        return (
+            "USAGE: Login [user] [password]"
+        );
     }
 
-    const username = args[0];
-    const password = args.slice(1).join(" ");
 
-    const users = getUsers();
+    const username =
+        args[0];
 
-    if (!users[username]) {
-        return "ERROR: USER NOT FOUND.";
+    const password =
+        args.slice(1).join(" ");
+
+
+    const result =
+        await supabase.auth.signInWithPassword({
+
+            email:
+                usernameEmail(username),
+
+            password:
+                password
+
+        });
+
+
+    if (result.error) {
+
+        return (
+            "LOGIN ERROR: " +
+            result.error.message
+        );
     }
 
-    if (users[username] !== password) {
-        return "ERROR: INVALID PASSWORD.";
-    }
 
-    currentUser = username;
+    currentUser =
+        result.data.user;
 
-    return "LOGIN SUCCESSFUL.\nWELCOME, " + username + ".";
+
+    await loadProfile();
+
+
+    return (
+        "LOGIN SUCCESSFUL.\n" +
+        "WELCOME, " +
+        (currentUsername || username) +
+        "."
+    );
 }
+
+
+/*
+    Logout.
+*/
+
+async function logout() {
+
+    const result =
+        await supabase.auth.signOut();
+
+
+    if (result.error) {
+
+        return (
+            "LOGOUT ERROR: " +
+            result.error.message
+        );
+    }
+
+
+    currentUser = null;
+
+    currentUsername = null;
+
+    updatePrompt();
+
+
+    return "LOGGED OUT.";
+}
+
+
+/*
+    Global user list.
+*/
+
+async function users() {
+
+    const result =
+        await supabase
+            .from("profiles")
+            .select("username,created_at")
+            .order(
+                "created_at",
+                {
+                    ascending: true
+                }
+            );
+
+
+    if (result.error) {
+
+        return (
+            "ERROR: " +
+            result.error.message
+        );
+    }
+
+
+    if (!result.data.length) {
+
+        return "NO REGISTERED USERS.";
+    }
+
+
+    const lines = [
+        "REGISTERED USERS",
+        ""
+    ];
+
+
+    result.data.forEach(
+        (user, index) => {
+
+            lines.push(
+                String(index + 1)
+                    .padStart(3, "0") +
+                "  " +
+                user.username
+            );
+
+        }
+    );
+
+
+    return lines.join("\n");
+}
+
+
+/*
+    Display forum messages.
+*/
+
+async function forum() {
+
+    const result =
+        await supabase
+            .from("forum_messages")
+            .select(
+                "username,message,created_at"
+            )
+            .order(
+                "created_at",
+                {
+                    ascending: true
+                }
+            )
+            .limit(100);
+
+
+    if (result.error) {
+
+        return (
+            "FORUM ERROR: " +
+            result.error.message
+        );
+    }
+
+
+    if (!result.data.length) {
+
+        return (
+            "FORUM IS EMPTY.\n" +
+            "TYPE: Forum [message]"
+        );
+    }
+
+
+    const lines = [
+        "ACCESS GLOBAL FORUM",
+        ""
+    ];
+
+
+    result.data.forEach(message => {
+
+        const date =
+            new Date(
+                message.created_at
+            ).toLocaleString();
+
+
+        lines.push(
+            "[" +
+            date +
+            "] " +
+            message.username +
+            ": " +
+            message.message
+        );
+
+    });
+
+
+    return lines.join("\n");
+}
+
+
+/*
+    Post forum message.
+
+    Usage:
+
+    Forum hello everyone
+*/
+
+async function postForum(args) {
+
+    if (!currentUser) {
+
+        return (
+            "ERROR: LOGIN REQUIRED.\n" +
+            "USE Login [user] [password]"
+        );
+    }
+
+
+    const message =
+        args.join(" ").trim();
+
+
+    if (!message) {
+
+        return (
+            "USAGE: Forum [message]"
+        );
+    }
+
+
+    if (message.length > 500) {
+
+        return (
+            "ERROR: MESSAGE TOO LONG.\n" +
+            "MAXIMUM: 500 CHARACTERS."
+        );
+    }
+
+
+    const result =
+        await supabase
+            .from("forum_messages")
+            .insert({
+
+                user_id:
+                    currentUser.id.toString(),
+
+                username:
+                    currentUsername,
+
+                message:
+                    message
+
+            });
+
+
+    if (result.error) {
+
+        return (
+            "FORUM ERROR: " +
+            result.error.message
+        );
+    }
+
+
+    return "MESSAGE POSTED.";
+}
+
+
+/*
+    Realtime forum.
+
+    New messages appear automatically.
+*/
+
+function subscribeForum() {
+
+    if (forumChannel) {
+
+        supabase.removeChannel(
+            forumChannel
+        );
+    }
+
+
+    forumChannel =
+        supabase
+            .channel("access-global-forum")
+
+            .on(
+
+                "postgres_changes",
+
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "forum_messages"
+                },
+
+                payload => {
+
+                    const message =
+                        payload.new;
+
+
+                    print(
+                        "[FORUM] " +
+                        message.username +
+                        ": " +
+                        message.message,
+
+                        "cyan"
+                    );
+
+                }
+
+            )
+
+            .subscribe();
+}
+
 
 const commands = {
 
     help: () => `
+
 AVAILABLE COMMANDS
 
 SYSTEM
@@ -302,20 +874,20 @@ VISUAL
   breach
 
 UTILITY
-  echo
-  say
+  echo [text]
+  say [text]
   banner
   random
   dice
   coin
-  calc
+  calc [expression]
   ascii
-  repeat
-  count
-  reverse
-  upper
-  lower
-  length
+  repeat [number] [text]
+  count [number]
+  reverse [text]
+  upper [text]
+  lower [text]
+  length [text]
   timecode
   history
   ls
@@ -323,35 +895,66 @@ UTILITY
   readme
 
 ACCOUNT
-  signup [user] [password]
-  login [user] [password]
-  logout
-  users
+  Signup [user] [password]
+  Login [user] [password]
+  Logout
+  Users
+  Whoami
+
+FORUM
+  Forum
+  Forum [message]
+
+EXAMPLES
+  Signup David password123
+  Login David password123
+  Users
+  Forum
+  Forum Hello everyone
 `,
 
     about: () =>
         "ACCESS TERMINAL\n\n" +
-        "A fictional browser-based terminal created for entertainment.\n" +
-        "No real hacking functionality is included.",
+        "Browser-based fictional terminal.\n" +
+        "Authentication: SUPABASE AUTH\n" +
+        "Database: SUPABASE POSTGRES\n" +
+        "Forum: SUPABASE REALTIME",
 
     version: () =>
-        "ACCESS TERMINAL v4.2.7\nBUILD: LOCAL",
+        "ACCESS TERMINAL v5.1.0\n" +
+        "BUILD: SUPABASE GLOBAL",
 
     status: () =>
         "SYSTEM STATUS\n\n" +
         "TERMINAL      ONLINE\n" +
-        "SESSION       ACTIVE\n" +
-        "NETWORK       " + (navigator.onLine ? "ONLINE" : "OFFLINE") + "\n" +
-        "AUTH          LOCAL\n" +
-        "REMOTE ACCESS DISABLED",
+        "NETWORK       " +
+        (navigator.onLine
+            ? "ONLINE"
+            : "OFFLINE") +
+        "\n" +
+        "SUPABASE      CONNECTED\n" +
+        "AUTH          " +
+        (currentUser
+            ? "AUTHENTICATED"
+            : "GUEST") +
+        "\n" +
+        "FORUM         GLOBAL\n" +
+        "REALTIME      ACTIVE",
 
     info: () =>
         "BROWSER INFORMATION\n\n" +
-        "USER AGENT    " + navigator.userAgent + "\n" +
-        "LANGUAGE      " + navigator.language + "\n" +
+        "USER AGENT    " +
+        navigator.userAgent +
+        "\n" +
+        "LANGUAGE      " +
+        navigator.language +
+        "\n" +
         "CPU CORES     " +
-        (navigator.hardwareConcurrency || "UNKNOWN") + "\n" +
-        "PLATFORM      " + navigator.platform,
+        (navigator.hardwareConcurrency ||
+            "UNKNOWN") +
+        "\n" +
+        "PLATFORM      " +
+        navigator.platform,
 
     platform: () =>
         navigator.platform,
@@ -360,13 +963,24 @@ ACCOUNT
         navigator.language,
 
     timezone: () =>
-        Intl.DateTimeFormat().resolvedOptions().timeZone,
+        Intl.DateTimeFormat()
+            .resolvedOptions()
+            .timeZone,
 
     screen: () =>
         "SCREEN INFORMATION\n\n" +
-        "RESOLUTION    " + screen.width + " x " + screen.height + "\n" +
-        "AVAILABLE     " + screen.availWidth + " x " + screen.availHeight + "\n" +
-        "PIXEL RATIO   " + devicePixelRatio,
+        "RESOLUTION    " +
+        screen.width +
+        " x " +
+        screen.height +
+        "\n" +
+        "AVAILABLE     " +
+        screen.availWidth +
+        " x " +
+        screen.availHeight +
+        "\n" +
+        "PIXEL RATIO   " +
+        devicePixelRatio,
 
     online: () =>
         navigator.onLine
@@ -374,7 +988,9 @@ ACCOUNT
             : "NETWORK STATUS: OFFLINE",
 
     hostname: () =>
-        "HOST: " + (location.hostname || "localhost"),
+        "HOST: " +
+        (location.hostname ||
+            "localhost"),
 
     date: () =>
         new Date().toLocaleDateString(),
@@ -383,14 +999,24 @@ ACCOUNT
         new Date().toLocaleTimeString(),
 
     uptime: () => {
-        const seconds =
-            Math.floor((Date.now() - sessionStart) / 1000);
 
-        return "SESSION UPTIME: " + seconds + "s";
+        const seconds =
+            Math.floor(
+                (Date.now() -
+                    sessionStart) /
+                1000
+            );
+
+        return (
+            "SESSION UPTIME: " +
+            seconds +
+            "s"
+        );
     },
 
     whoami: () =>
-        currentUser || "guest",
+        currentUsername ||
+        "guest",
 
     clear: clearScreen,
 
@@ -403,6 +1029,7 @@ ACCOUNT
         args.join(" "),
 
     banner: () => `
+
      █████╗  ██████╗ ██████╗███████╗███████╗███████╗
     ██╔══██╗██╔════╝██╔════╝██╔════╝██╔════╝██╔════╝
     ███████║██║     ██║     █████╗  ███████╗███████╗
@@ -419,14 +1046,22 @@ ACCOUNT
 
     glitch: () => {
 
-        document.body.classList.remove("glitch");
+        document.body.classList.remove(
+            "glitch"
+        );
 
         void document.body.offsetWidth;
 
-        document.body.classList.add("glitch");
+        document.body.classList.add(
+            "glitch"
+        );
 
         setTimeout(() => {
-            document.body.classList.remove("glitch");
+
+            document.body.classList.remove(
+                "glitch"
+            );
+
         }, 120);
 
         return "SIGNAL DISTORTION.";
@@ -439,40 +1074,50 @@ ACCOUNT
 
         await sleep(300);
 
-        document.body.style.textShadow = "";
+        document.body.style.textShadow =
+            "";
 
         return "PULSE COMPLETE.";
     },
 
-    neon: () => {
-
-        document.documentElement.style.setProperty(
-            "--green",
-            "#00ff55"
-        );
-
-        return "NEON MODE ENABLED.";
-    },
+    neon: () =>
+        "NEON MODE ENABLED.",
 
     color: args => {
 
         const colors = {
+
             green: "#00ff55",
             cyan: "#00ffd5",
             yellow: "#dfff00",
             red: "#ff3030",
             white: "#d9ffe5"
+
         };
 
+
         const selected =
-            colors[(args[0] || "").toLowerCase()];
+            colors[
+                (args[0] || "")
+                    .toLowerCase()
+            ];
+
 
         if (!selected) {
-            return "COLORS: green, cyan, yellow, red, white";
+
+            return (
+                "COLORS: " +
+                "green, cyan, yellow, red, white"
+            );
         }
 
-        document.body.style.color = selected;
-        input.style.color = selected;
+
+        document.body.style.color =
+            selected;
+
+        input.style.color =
+            selected;
+
 
         return "TERMINAL COLOR CHANGED.";
     },
@@ -480,6 +1125,7 @@ ACCOUNT
     scan: async () => {
 
         const messages = [
+
             "INITIALIZING SCAN...",
             "CHECKING LOCAL ENVIRONMENT...",
             "ANALYZING SESSION...",
@@ -487,48 +1133,73 @@ ACCOUNT
             "CHECKING BROWSER CONTEXT...",
             "NO MALICIOUS ACTIVITY DETECTED.",
             "SCAN COMPLETE."
+
         ];
+
 
         for (const message of messages) {
 
-            print(message, "dim");
+            print(
+                message,
+                "dim"
+            );
 
-            await sleep(160);
+            await sleep(130);
         }
+
 
         return "";
     },
 
     decrypt: async () => {
 
-        for (let i = 0; i <= 100; i += 10) {
+        for (
+            let i = 0;
+            i <= 100;
+            i += 10
+        ) {
 
             print(
-                "DECRYPTING... " + i + "%",
+                "DECRYPTING... " +
+                i +
+                "%",
                 "yellow"
             );
 
-            await sleep(65);
+            await sleep(55);
         }
+
 
         return "DECRYPTION COMPLETE.";
     },
 
     trace: async () => {
 
-        print("TRACE ROUTE", "cyan");
+        print(
+            "TRACE ROUTE",
+            "cyan"
+        );
 
-        await sleep(180);
+        await sleep(140);
 
-        print("01  LOCALHOST", "white");
+        print(
+            "01  LOCALHOST",
+            "white"
+        );
 
-        await sleep(160);
+        await sleep(140);
 
-        print("02  ACCESS-NODE", "white");
+        print(
+            "02  ACCESS-NODE",
+            "white"
+        );
 
-        await sleep(160);
+        await sleep(140);
 
-        print("03  TERMINAL", "white");
+        print(
+            "03  TERMINAL",
+            "white"
+        );
 
         return "TRACE COMPLETE.";
     },
@@ -536,6 +1207,7 @@ ACCOUNT
     hack: async () => {
 
         const messages = [
+
             "INITIALIZING REMOTE INTERFACE...",
             "TARGET IDENTIFIED.",
             "AUTHENTICATION BYPASS...",
@@ -546,19 +1218,25 @@ ACCOUNT
             "",
             "SIMULATION COMPLETE.",
             "NO REAL SYSTEM WAS ACCESSED."
+
         ];
+
 
         for (const message of messages) {
 
             print(
+
                 message,
+
                 message.includes("NO REAL")
                     ? "yellow"
                     : "green"
+
             );
 
-            await sleep(150);
+            await sleep(130);
         }
+
 
         return "";
     },
@@ -570,29 +1248,40 @@ ACCOUNT
             "red"
         );
 
-        await sleep(400);
+        await sleep(350);
 
         print(
             "ANALYZING FICTIONAL PERIMETER...",
             "yellow"
         );
 
-        await sleep(400);
+        await sleep(350);
 
         print(
             "SIMULATION COMPLETE.",
             "green"
         );
 
-        return "NO REAL SYSTEM ACCESS OCCURRED.";
+        return (
+            "NO REAL SYSTEM ACCESS OCCURRED."
+        );
     },
 
     random: () =>
-        String(Math.floor(Math.random() * 1000000)),
+        String(
+            Math.floor(
+                Math.random() *
+                1000000
+            )
+        ),
 
     dice: () =>
         "DICE RESULT: " +
-        (Math.floor(Math.random() * 6) + 1),
+        (
+            Math.floor(
+                Math.random() * 6
+            ) + 1
+        ),
 
     coin: () =>
         Math.random() < 0.5
@@ -601,11 +1290,21 @@ ACCOUNT
 
     calc: args => {
 
-        const expression = args.join(" ");
+        const expression =
+            args.join(" ");
 
-        if (!/^[0-9+\-*/().%\s]+$/.test(expression)) {
-            return "ONLY BASIC ARITHMETIC IS SUPPORTED.";
+
+        if (
+            !/^[0-9+\-*/().%\s]+$/
+                .test(expression)
+        ) {
+
+            return (
+                "ONLY BASIC ARITHMETIC " +
+                "IS SUPPORTED."
+            );
         }
+
 
         try {
 
@@ -616,7 +1315,11 @@ ACCOUNT
                     ')'
                 )();
 
-            return "RESULT: " + result;
+
+            return (
+                "RESULT: " +
+                result
+            );
 
         } catch {
 
@@ -625,6 +1328,7 @@ ACCOUNT
     },
 
     ascii: () => `
+
        /\\_/\\\\
       ( o.o )
        > ^ <
@@ -633,42 +1337,70 @@ ACCOUNT
     repeat: args => {
 
         const amount =
-            Math.min(parseInt(args[0]) || 1, 20);
+            Math.min(
+                parseInt(args[0]) || 1,
+                20
+            );
+
 
         return Array(amount)
-            .fill(args.slice(1).join(" "))
+            .fill(
+                args.slice(1).join(" ")
+            )
             .join("\n");
     },
 
     count: async args => {
 
         const amount =
-            Math.min(parseInt(args[0]) || 10, 50);
+            Math.min(
+                parseInt(args[0]) || 10,
+                50
+            );
 
-        for (let i = 1; i <= amount; i++) {
 
-            print(String(i));
+        for (
+            let i = 1;
+            i <= amount;
+            i++
+        ) {
 
-            await sleep(25);
+            print(
+                String(i)
+            );
+
+            await sleep(20);
         }
+
 
         return "";
     },
 
     reverse: args =>
-        args.join(" ").split("").reverse().join(""),
+        args
+            .join(" ")
+            .split("")
+            .reverse()
+            .join(""),
 
     upper: args =>
-        args.join(" ").toUpperCase(),
+        args.join(" ")
+            .toUpperCase(),
 
     lower: args =>
-        args.join(" ").toLowerCase(),
+        args.join(" ")
+            .toLowerCase(),
 
     length: args =>
-        "LENGTH: " + args.join(" ").length,
+        "LENGTH: " +
+        args.join(" ").length,
 
     timecode: () =>
-        String(Math.floor(Date.now() / 1000)),
+        String(
+            Math.floor(
+                Date.now() / 1000
+            )
+        ),
 
     history: () =>
         commandHistory.length
@@ -676,6 +1408,7 @@ ACCOUNT
             : "NO HISTORY.",
 
     ls: () => `
+
 VIRTUAL FILES
 
 ACCESS/
@@ -690,83 +1423,106 @@ ACCESS/
         commands.ls(),
 
     readme: () => `
+
 ACCESS TERMINAL
 
-This page is a fictional terminal interface.
+This is a fictional terminal interface.
 
-Commands are simulations for entertainment.
+Authentication:
+SUPABASE AUTH
 
-Signup and Login are stored locally in this browser.
-They are NOT secure authentication.`,
+Database:
+SUPABASE POSTGRES
 
-    logout: () => {
+Forum:
+SUPABASE REALTIME
 
-        currentUser = null;
+Do not use a real password
+for this entertainment project.`,
 
-        return "LOGGED OUT.";
-    },
+    signup: args =>
+        signup(args),
 
-    users: () => {
+    login: args =>
+        login(args),
 
-        const users = getUsers();
-        const names = Object.keys(users);
+    logout: () =>
+        logout(),
 
-        if (!names.length) {
-            return "NO LOCAL USERS.";
+    users: () =>
+        users(),
+
+    forum: async args => {
+
+        if (args.length) {
+
+            return postForum(args);
         }
 
-        return "LOCAL USERS:\n\n" +
-            names.join("\n");
+        return forum();
     }
 };
 
+
 async function runCommand(raw) {
 
-    const commandLine = raw.trim();
+    const commandLine =
+        raw.trim();
 
-    if (!commandLine) {
+
+    if (!commandLine)
         return;
-    }
 
-    commandHistory.push(commandLine);
-    historyIndex = commandHistory.length;
 
-    print(
-        (currentUser || "guest") +
-        "@access:~$ " +
-        commandLine,
-        "white"
+    commandHistory.push(
+        commandLine
     );
 
+
+    historyIndex =
+        commandHistory.length;
+
+
+    print(
+
+        (currentUsername ||
+            "guest") +
+        "@access:~$ " +
+        commandLine,
+
+        "white"
+
+    );
+
+
     const parts =
-        commandLine.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+        commandLine.match(
+            /(?:[^\s"]+|"[^"]*")+/g
+        ) || [];
+
 
     const command =
-        (parts.shift() || "").toLowerCase();
+        (
+            parts.shift() ||
+            ""
+        ).toLowerCase();
+
 
     const args =
-        parts.map(value =>
-            value.replace(/^"|"$/g, "")
+        parts.map(
+            value =>
+                value.replace(
+                    /^"|"$/g,
+                    ""
+                )
         );
 
-    if (command === "signup") {
-
-        print(await signup(args));
-
-        return;
-    }
-
-    if (command === "login") {
-
-        print(await login(args));
-
-        return;
-    }
 
     if (!commands[command]) {
 
         print(
-            "COMMAND NOT FOUND: " + command,
+            "COMMAND NOT FOUND: " +
+            command,
             "red"
         );
 
@@ -778,62 +1534,98 @@ async function runCommand(raw) {
         return;
     }
 
+
     try {
 
         const result =
             await commands[command](args);
 
-        if (result) {
-            print(result);
-        }
 
-    } catch {
+        if (result)
+            print(result);
+
+    } catch (error) {
 
         print(
-            "COMMAND ERROR.",
+            "COMMAND ERROR: " +
+            error.message,
             "red"
         );
     }
 }
 
+
 function createMatrix() {
 
     const canvas =
-        document.createElement("canvas");
+        document.createElement(
+            "canvas"
+        );
 
-    canvas.style.position = "fixed";
-    canvas.style.left = "0";
-    canvas.style.top = "0";
-    canvas.style.width = "100%";
-    canvas.style.height = "100%";
-    canvas.style.zIndex = "-1";
-    canvas.style.pointerEvents = "none";
 
-    document.body.appendChild(canvas);
+    canvas.style.position =
+        "fixed";
+
+    canvas.style.left =
+        "0";
+
+    canvas.style.top =
+        "0";
+
+    canvas.style.width =
+        "100%";
+
+    canvas.style.height =
+        "100%";
+
+    canvas.style.zIndex =
+        "-1";
+
+    canvas.style.pointerEvents =
+        "none";
+
+
+    document.body.appendChild(
+        canvas
+    );
+
 
     const context =
         canvas.getContext("2d");
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+
+    canvas.width =
+        window.innerWidth;
+
+    canvas.height =
+        window.innerHeight;
+
 
     const characters =
         "01ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
+
     const size = 15;
 
+
     const columns =
-        Math.floor(canvas.width / size);
+        Math.floor(
+            canvas.width / size
+        );
+
 
     const drops =
         Array(columns).fill(1);
 
+
     let frames = 0;
+
 
     function draw() {
 
         context.fillStyle =
             "rgba(0,0,0,0.08)";
+
 
         context.fillRect(
             0,
@@ -842,10 +1634,20 @@ function createMatrix() {
             canvas.height
         );
 
-        context.fillStyle = "#00ff55";
-        context.font = size + "px monospace";
 
-        for (let i = 0; i < drops.length; i++) {
+        context.fillStyle =
+            "#00ff55";
+
+        context.font =
+            size +
+            "px monospace";
+
+
+        for (
+            let i = 0;
+            i < drops.length;
+            i++
+        ) {
 
             const character =
                 characters[
@@ -855,27 +1657,43 @@ function createMatrix() {
                     )
                 ];
 
+
             context.fillText(
+
                 character,
+
                 i * size,
+
                 drops[i] * size
+
             );
 
+
             if (
-                drops[i] * size > canvas.height &&
-                Math.random() > 0.975
+
+                drops[i] * size >
+                canvas.height &&
+
+                Math.random() > .975
+
             ) {
+
                 drops[i] = 0;
             }
+
 
             drops[i]++;
         }
 
+
         frames++;
+
 
         if (frames < 250) {
 
-            requestAnimationFrame(draw);
+            requestAnimationFrame(
+                draw
+            );
 
         } else {
 
@@ -883,102 +1701,191 @@ function createMatrix() {
         }
     }
 
+
     draw();
 }
 
-input.addEventListener("keydown", async event => {
 
-    if (event.key === "Enter") {
+input.addEventListener(
+    "keydown",
+    async event => {
 
-        const value = input.value;
+        if (event.key === "Enter") {
 
-        input.value = "";
+            const value =
+                input.value;
 
-        await runCommand(value);
 
-        screen.scrollTop =
-            screen.scrollHeight;
+            input.value = "";
 
-        return;
-    }
 
-    if (event.key === "ArrowUp") {
+            await runCommand(
+                value
+            );
 
-        event.preventDefault();
 
-        if (commandHistory.length) {
+            screen.scrollTop =
+                screen.scrollHeight;
 
-            historyIndex =
-                Math.max(0, historyIndex - 1);
 
-            input.value =
-                commandHistory[historyIndex] || "";
+            return;
         }
 
-        return;
-    }
 
-    if (event.key === "ArrowDown") {
+        if (event.key === "ArrowUp") {
 
-        event.preventDefault();
+            event.preventDefault();
 
-        if (commandHistory.length) {
 
-            historyIndex =
-                Math.min(
-                    commandHistory.length,
-                    historyIndex + 1
-                );
+            if (
+                commandHistory.length
+            ) {
 
-            input.value =
-                commandHistory[historyIndex] || "";
+                historyIndex =
+                    Math.max(
+                        0,
+                        historyIndex - 1
+                    );
+
+
+                input.value =
+                    commandHistory[
+                        historyIndex
+                    ] || "";
+            }
+
+
+            return;
         }
 
-        return;
+
+        if (event.key === "ArrowDown") {
+
+            event.preventDefault();
+
+
+            if (
+                commandHistory.length
+            ) {
+
+                historyIndex =
+                    Math.min(
+                        commandHistory.length,
+                        historyIndex + 1
+                    );
+
+
+                input.value =
+                    commandHistory[
+                        historyIndex
+                    ] || "";
+            }
+
+
+            return;
+        }
+
+
+        if (event.key === "Tab") {
+
+            event.preventDefault();
+
+
+            const typed =
+                input.value.toLowerCase();
+
+
+            const matches =
+                Object.keys(commands)
+                    .filter(
+                        command =>
+                            command.startsWith(
+                                typed
+                            )
+                    );
+
+
+            if (
+                matches.length === 1
+            ) {
+
+                input.value =
+                    matches[0];
+            }
+        }
+
     }
+);
 
-    if (event.key === "Tab") {
 
-        event.preventDefault();
+document.addEventListener(
+    "click",
+    () => {
 
-        const typed =
-            input.value.toLowerCase();
+        input.focus();
 
-        const matches =
-            Object.keys(commands)
-                .filter(command =>
-                    command.startsWith(typed)
-                );
+    }
+);
 
-        if (matches.length === 1) {
 
-            input.value = matches[0];
+/*
+    Supabase authentication events.
+*/
+
+supabase.auth.onAuthStateChange(
+    async (_event, session) => {
+
+        if (session) {
+
+            currentUser =
+                session.user;
+
+            await loadProfile();
+
+        } else {
+
+            currentUser = null;
+
+            currentUsername = null;
+
+            updatePrompt();
         }
     }
-});
+);
 
-document.addEventListener("click", () => {
-    input.focus();
-});
 
 async function boot() {
 
     print(
-        "ACCESS TERMINAL v4.2.7",
+        "ACCESS TERMINAL v5.1.0",
         "cyan"
     );
 
-    await sleep(120);
+    await sleep(100);
 
     print(
         "LOCAL SESSION INITIALIZED.",
         "green"
     );
 
-    await sleep(140);
+    await sleep(120);
 
     print(
-        "CONNECTION STATUS: ONLINE",
+        "SUPABASE CONNECTION READY.",
+        "green"
+    );
+
+    await sleep(120);
+
+    print(
+        "GLOBAL USER DATABASE ONLINE.",
+        "green"
+    );
+
+    await sleep(100);
+
+    print(
+        "GLOBAL FORUM LINK ESTABLISHED.",
         "green"
     );
 
@@ -992,9 +1899,15 @@ async function boot() {
     );
 
     print("");
+
+    await loadSession();
+
+    subscribeForum();
 }
 
+
 boot();
+
 </script>
 
 </body>
