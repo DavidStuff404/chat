@@ -1,3652 +1,788 @@
-<html lang="en" style="height: 100%; overscroll-behavior: contain; -webkit-touch-callout: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; --sekai-bg: #080808;"><style>*{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;}input,textarea,[contenteditable]{-webkit-user-select:text!important;user-select:text!important;}</style><head>
-<script>
-(function() {
-  if (typeof CustomEvent === 'function') return;
-  function CustomEvent(event, params) {
-    params = params || { bubbles: false, cancelable: false, detail: null };
-    var evt = document.createEvent('CustomEvent');
-    evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail);
-    return evt;
-  }
-  CustomEvent.prototype = window.Event && window.Event.prototype;
-  window.CustomEvent = CustomEvent;
-})();
-</script>
-
-<script>
-(function() {
-  // Function to set or update viewport meta tag
-  function ensureViewportMeta() {
-    var viewportMeta = document.querySelector('meta[name="viewport"]');
-    
-    if (!viewportMeta) {
-      // Create viewport meta tag if it doesn't exist
-      viewportMeta = document.createElement('meta');
-      viewportMeta.name = 'viewport';
-      document.head.insertBefore(viewportMeta, document.head.firstChild);
-    }
-    
-    // Set viewport to prevent iOS auto-zoom
-    // width=device-width: Use device width
-    // initial-scale=1.0: Initial zoom level
-    // maximum-scale=1.0: Prevent zooming beyond 1.0
-    // user-scalable=no: Disable user scaling (prevents pinch zoom and auto-zoom on input focus)
-    viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-  }
-  
-  // Run immediately if DOM is already ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', ensureViewportMeta);
-  } else {
-    ensureViewportMeta();
-  }
-  
-  // Also ensure it's set when head is ready (in case script runs before head)
-  if (!document.head) {
-    var observer = new MutationObserver(function(mutations) {
-      if (document.head) {
-        ensureViewportMeta();
-        observer.disconnect();
-      }
-    });
-    observer.observe(document.documentElement, { childList: true });
-  }
-})();
-</script>
-
-<script>
-(function() {
-  var originalAddEventListener = EventTarget.prototype.addEventListener;
-  var originalRemoveEventListener = EventTarget.prototype.removeEventListener;
-
-  // ── Tap vs Swipe detection ──
-  // Track pointerdown position; only synthesize click when displacement is small.
-  var ptrDownPos = null;
-  var TAP_THRESHOLD_SQ = 100; // 10px squared
-
-  originalAddEventListener.call(document, 'pointerdown', function(e) {
-    if (e.button !== 0) return;
-    ptrDownPos = { x: e.clientX, y: e.clientY };
-  }, { capture: true, passive: true });
-
-  function isTap(e) {
-    if (!ptrDownPos) return true; // no pointerdown recorded — be safe, treat as tap
-    var dx = e.clientX - ptrDownPos.x;
-    var dy = e.clientY - ptrDownPos.y;
-    return (dx * dx + dy * dy) <= TAP_THRESHOLD_SQ;
-  }
-
-  // ── click → pointerup conversion ──
-  var listenerMap = new WeakMap();
-
-  EventTarget.prototype.addEventListener = function(type, listener, options) {
-    if (type === 'click' && typeof listener === 'function') {
-      var elementMap = listenerMap.get(this);
-      if (!elementMap) {
-        elementMap = new Map();
-        listenerMap.set(this, elementMap);
-      }
-
-      var existingPointerListener = elementMap.get(listener);
-      if (existingPointerListener) {
-        return originalAddEventListener.call(this, 'pointerup', existingPointerListener, options);
-      }
-
-      var pointerupListener = function(e) {
-        if (e.button !== 0) return;
-        if (!isTap(e)) return;
-
-        var clickEvent = new MouseEvent('click', {
-          bubbles: e.bubbles, cancelable: e.cancelable, view: e.view,
-          detail: 1,
-          screenX: e.screenX, screenY: e.screenY,
-          clientX: e.clientX, clientY: e.clientY,
-          ctrlKey: e.ctrlKey, altKey: e.altKey,
-          shiftKey: e.shiftKey, metaKey: e.metaKey,
-          button: e.button, relatedTarget: e.relatedTarget
-        });
-        Object.defineProperty(clickEvent, 'target', { value: e.target, enumerable: true });
-        Object.defineProperty(clickEvent, 'currentTarget', { value: e.currentTarget, enumerable: true });
-
-        try { listener.call(this, clickEvent); } catch (err) {}
-      };
-
-      elementMap.set(listener, pointerupListener);
-      return originalAddEventListener.call(this, 'pointerup', pointerupListener, options);
-    }
-
-    return originalAddEventListener.call(this, type, listener, options);
-  };
-
-  EventTarget.prototype.removeEventListener = function(type, listener, options) {
-    if (type === 'click' && typeof listener === 'function') {
-      var elementMap = listenerMap.get(this);
-      if (elementMap) {
-        var pointerupListener = elementMap.get(listener);
-        if (pointerupListener) {
-          elementMap.delete(listener);
-          return originalRemoveEventListener.call(this, 'pointerup', pointerupListener, options);
-        }
-      }
-    }
-    return originalRemoveEventListener.call(this, type, listener, options);
-  };
-
-  // ── Synthetic click for .onclick compatibility ──
-  // Only dispatch when the gesture is a tap (not a swipe).
-  var SEKAI_SYNTHETIC_KEY = '__sekai_sc';
-
-  originalAddEventListener.call(document, 'pointerup', function(e) {
-    if (e.button !== 0) return;
-    if (!isTap(e)) return;
-    var t = e.target;
-    if (!t || !t.dispatchEvent) return;
-
-    var evt = new MouseEvent('click', {
-      bubbles: true, cancelable: true, view: e.view,
-      detail: 1,
-      screenX: e.screenX, screenY: e.screenY,
-      clientX: e.clientX, clientY: e.clientY,
-      ctrlKey: e.ctrlKey, altKey: e.altKey,
-      shiftKey: e.shiftKey, metaKey: e.metaKey,
-      button: 0, relatedTarget: null
-    });
-    Object.defineProperty(evt, SEKAI_SYNTHETIC_KEY, { value: true });
-    t.dispatchEvent(evt);
-  }, false);
-
-  // Block browser-synthesized click events to prevent double-triggering.
-  originalAddEventListener.call(document, 'click', function(e) {
-    if (!e[SEKAI_SYNTHETIC_KEY]) {
-      e.stopImmediatePropagation();
-    }
-  }, true);
-})();
-</script>
-
-<script>
-(function() {
-  // Track recent touch to block emulated mouse events
-  var lastTouchTime = 0;
-  var TOUCH_MOUSE_DELAY = 200; // ms to block mouse events after touch
-
-  // Global touch tracker - set flag when touch occurs
-  document.addEventListener('touchstart', function() {
-    lastTouchTime = Date.now();
-  }, { passive: true, capture: true });
-
-  document.addEventListener('touchend', function() {
-    lastTouchTime = Date.now();
-  }, { passive: true, capture: true });
-
-  // Block emulated mouse events that follow touch
-  // BUT allow them on focusable elements (inputs need mousedown for focus)
-  function blockEmulatedMouseHandler(e) {
-    if (Date.now() - lastTouchTime < TOUCH_MOUSE_DELAY) {
-      // Don't block on focusable elements - they need mousedown for focus
-      var target = e.target;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-        return; // Allow the event
-      }
-      e.stopPropagation();
-      // NOTE: Do NOT call preventDefault() here.
-      // CSS user-select:none already handles text selection prevention.
-      // On iOS WKWebView, mousedown.preventDefault() can intermittently
-      // suppress click event synthesis, breaking .onclick handlers.
-    }
-  }
-
-  // Capture phase blockers for emulated mouse events
-  document.addEventListener('mousedown', blockEmulatedMouseHandler, { capture: true });
-
-  // Patch addEventListener to force passive on touch events.
-  // Expose original globally so SCROLL_BLOCK_SCRIPT can register a
-  // non-passive touchmove handler to block iOS WKWebView parent scroll.
-  var originalAddEventListener = EventTarget.prototype.addEventListener;
-  window.__sekai_orig_ael = originalAddEventListener;
-
-  EventTarget.prototype.addEventListener = function(type, listener, options) {
-    // Convert touchstart/touchmove to passive
-    // Mouse event emulation is handled by our global blockers above
-    if (type === 'touchstart' || type === 'touchmove') {
-      var newOptions = Object.assign({}, options || {}, { passive: true });
-      return originalAddEventListener.call(this, type, listener, newOptions);
-    }
-    return originalAddEventListener.call(this, type, listener, options);
-  };
-})();
-</script>
-
-<script>
-(function() {
-  // Track if dom_ready was already sent
-  var domReadySent = false;
-
-  function sendDomReady() {
-    if (domReadySent) return;
-    domReadySent = true;
-    window.parent.postMessage({ type: 'sekai_iframe_dom_ready' }, '*');
-  }
-
-  // Send dom_ready when DOMContentLoaded fires
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', sendDomReady);
-  } else {
-    // DOM already loaded
-    sendDomReady();
-  }
-
-  // Helper to serialize message - handles objects that would become [object Object]
-  function serializeMessage(msg) {
-    if (msg === null || msg === undefined) return '';
-    if (typeof msg === 'string') return msg;
-    if (typeof msg === 'object') {
-      try {
-        return JSON.stringify(msg);
-      } catch (e) {
-        return String(msg);
-      }
-    }
-    return String(msg);
-  }
-
-  // Catch JS errors and send to parent
-  window.onerror = function(message, source, lineno, colno, error) {
-    window.parent.postMessage({
-      type: 'sekai_iframe_js_error',
-      message: serializeMessage(message),
-      source: source || '',
-      lineno: lineno || 0,
-      colno: colno || 0,
-      errorName: error ? error.name : '',
-      errorStack: error ? error.stack : ''
-    }, '*');
-    // Return false to allow default error handling
-    return false;
-  };
-
-  // Also catch unhandled promise rejections
-  window.addEventListener('unhandledrejection', function(event) {
-    var reason = event.reason;
-    var isError = reason instanceof Error;
-    window.parent.postMessage({
-      type: 'sekai_iframe_js_error',
-      message: reason ? serializeMessage(reason) : 'Unhandled promise rejection',
-      source: 'unhandledrejection',
-      lineno: 0,
-      colno: 0,
-      errorName: isError ? reason.name : '',
-      errorStack: isError ? reason.stack : ''
-    }, '*');
-  });
-})();
-</script>
-
-<script>
-(function() {
-  // Collect all devicemotion listeners registered by game code
-  var deviceMotionListeners = [];
-
-  // Save original addEventListener
-  var originalAddEventListener = window.addEventListener;
-
-  // Intercept addEventListener to capture devicemotion listeners
-  window.addEventListener = function(type, listener, options) {
-    if (type === 'devicemotion' && typeof listener === 'function') {
-      deviceMotionListeners.push(listener);
-      // Also add to native in case permission is granted elsewhere
-      return originalAddEventListener.call(this, type, listener, options);
-    }
-    return originalAddEventListener.call(this, type, listener, options);
-  };
-
-  // Also intercept removeEventListener
-  var originalRemoveEventListener = window.removeEventListener;
-  window.removeEventListener = function(type, listener, options) {
-    if (type === 'devicemotion' && typeof listener === 'function') {
-      var index = deviceMotionListeners.indexOf(listener);
-      if (index !== -1) {
-        deviceMotionListeners.splice(index, 1);
-      }
-    }
-    return originalRemoveEventListener.call(this, type, listener, options);
-  };
-
-  // Listen for forwarded motion data from parent
-  window.addEventListener('message', function(event) {
-    if (!event.data || event.data.type !== '__sekai_device_motion__') return;
-
-    var data = event.data;
-
-    // Create a synthetic event-like object
-    var syntheticEvent = {
-      accelerationIncludingGravity: data.accelerationIncludingGravity,
-      acceleration: data.acceleration,
-      rotationRate: data.rotationRate,
-      interval: data.interval || 16,
-      // Make it look like a real event
-      type: 'devicemotion',
-      timeStamp: data.timestamp || Date.now(),
-      target: window,
-      currentTarget: window,
-      preventDefault: function() {},
-      stopPropagation: function() {},
-      stopImmediatePropagation: function() {}
-    };
-
-    // Trigger all registered listeners
-    deviceMotionListeners.forEach(function(listener) {
-      try {
-        listener(syntheticEvent);
-      } catch (e) {
-        // Ignore listener errors
-      }
-    });
-  });
-})();
-</script>
-
-<script>
-(function() {
-  // Track all AudioContexts created in this iframe
-  var audioContexts = [];
-  var originalAudioContext = window.AudioContext || window.webkitAudioContext;
-
-  if (originalAudioContext) {
-    // Patch AudioContext constructor to track instances and enforce initial mute state.
-    // If isMuted is true when the context is created, suspend it immediately so that
-    // AudioNode sources cannot produce audio before the parent sends receive_audio_mute.
-    // This closes the race window between iframe load start and the first mute message.
-    var PatchedAudioContext = function() {
-      var ctx = new originalAudioContext();
-      audioContexts.push(ctx);
-      // Per-ctx diagnostic flags. Each AudioContext instance warns at most
-      // once for each of the two diagnostics below, so a rAF-driven
-      // resume() loop (observed in real games) does not spam vconsole,
-      // while new contexts still act as fresh sentinels.
-      var resumeBlockWarned = false;
-      var browserResumeWarned = false;
-      if (typeof ctx.resume === 'function') {
-        var originalCtxResume = ctx.resume.bind(ctx);
-        ctx.resume = function() {
-          if (isMuted) {
-            // Game code attempted to resume AudioContext during mute window.
-            // Blocked here prevents the audibility observer from reporting a
-            // false playing_started. Logged once per ctx to confirm the
-            // "game code calls resume()" leak path is real.
-            if (!resumeBlockWarned) {
-              resumeBlockWarned = true;
-              try {
-                console.warn(
-                  '[sekai-iframe-audio] AudioContext.resume() blocked while muted (once per ctx)'
-                );
-              } catch (e) {}
-            }
-            return Promise.resolve();
-          }
-          return originalCtxResume();
-        };
-      }
-      if (isMuted) {
-        ctx.suspend().catch(function() {});
-      }
-      // Feed perf audibility observer: re-evaluate whenever the context
-      // transitions between suspended/running/closed. ctx.suspend()/resume()
-      // resolve asynchronously, so the statechange event is the only reliable
-      // signal that the context has actually moved.
-      try {
-        ctx.addEventListener('statechange', function() {
-          // Sentinel: resume() is blocked above while muted, so if the ctx
-          // still enters 'running' during mute, the only remaining cause is
-          // browser-initiated state recovery (e.g. iOS audio session
-          // interruption ending). If this log ever appears in practice, the
-          // resume() block alone is not enough — we must also guard
-          // notifyAudibilityChange() to suppress audible=true while muted.
-          // Logged once per ctx to avoid repeated warnings on oscillating
-          // state transitions.
-          if (ctx.state === 'running' && isMuted && !browserResumeWarned) {
-            browserResumeWarned = true;
-            try {
-              console.warn(
-                '[sekai-iframe-audio] AudioContext entered running while muted (browser-initiated, once per ctx)'
-              );
-            } catch (e) {}
-          }
-          scheduleAudibilityCheck();
-        });
-      } catch (e) {
-        // Ignore listener attach failures on non-conforming contexts
-      }
-      return ctx;
-    };
-    PatchedAudioContext.prototype = originalAudioContext.prototype;
-    window.AudioContext = PatchedAudioContext;
-    if (window.webkitAudioContext) {
-      window.webkitAudioContext = PatchedAudioContext;
-    }
-  }
-
-  // Track all Audio objects (including those created via new Audio())
-  var audioElements = [];
-  var originalAudio = window.Audio;
-  
-  function rememberMutedState(el) {
-    if (!el) return;
-    try {
-      if (!mutedElements.has(el)) {
-        mutedElements.set(el, !!el.muted);
-      }
-    } catch (e) {
-      // Ignore muted state snapshot failures
-    }
-  }
-
-  if (originalAudio) {
-    window.Audio = function(src) {
-      var audio = new originalAudio(src);
-      audioElements.push(audio);
-      if (isMuted) {
-        rememberMutedState(audio);
-        try { audio.muted = true; } catch (e) {}
-      }
-      return audio;
-    };
-    // Preserve prototype chain
-    window.Audio.prototype = originalAudio.prototype;
-  }
-
-  // Track video elements created via createElement
-  var videoElements = [];
-  var originalCreateElement = document.createElement;
-
-  document.createElement = function(tagName) {
-    var element = originalCreateElement.call(document, tagName);
-
-    // Track audio and video elements
-    if (typeof tagName === 'string') {
-      var tag = tagName.toLowerCase();
-      if (tag === 'audio') {
-        audioElements.push(element);
-        if (isMuted) {
-          rememberMutedState(element);
-          try { element.muted = true; } catch (e) {}
-        }
-      } else if (tag === 'video') {
-        videoElements.push(element);
-        if (isMuted) {
-          rememberMutedState(element);
-          try { element.muted = true; } catch (e) {}
-        }
-      }
-    }
-
-    return element;
-  };
-
-  // Track elements that are INTENDED to be playing (based on .play()/.pause() calls).
-  // This is more reliable than checking .paused at mute time, because iOS pauses
-  // audio elements when the app goes to background BEFORE our JS visibility handler
-  // runs — by the time muteAllAudio() is called, all elements are already paused
-  // by the OS and .paused === true for all of them.
-  var intendedPlaying = new Set();
-
-  if (window.HTMLMediaElement) {
-    var originalHTMLPlay = HTMLMediaElement.prototype.play;
-    var originalHTMLPause = HTMLMediaElement.prototype.pause;
-    var internalPause = false;
-
-    HTMLMediaElement.prototype.play = function() {
-      intendedPlaying.add(this);
-      if (isMuted) {
-        rememberMutedState(this);
-        try { this.muted = true; } catch (e) {}
-        try {
-          if (!this.paused) {
-            internalPause = true;
-            originalHTMLPause.call(this);
-          }
-        } catch (e) {
-          // Ignore pause failures while muted
-        } finally {
-          internalPause = false;
-        }
-        return Promise.resolve();
-      }
-      return originalHTMLPlay.apply(this, arguments);
-    };
-
-    HTMLMediaElement.prototype.pause = function() {
-      if (!internalPause) {
-        intendedPlaying.delete(this);
-      }
-      return originalHTMLPause.apply(this, arguments);
-    };
-  }
-
-  // Track elements queued for playback resume — retried on each user touchstart
-  // until all elements are playing again. More reliable than { once: true } because
-  // it survives cases where the first touch fires before unmuteAllAudio() processes
-  // the message (postMessage is async; user may touch the moment they switch back).
-  var pendingResume = [];
-
-  // Track muted state to restore correctly
-  var mutedElements = new WeakMap();
-  var isMuted = false;
-
-  function collectTrackedMediaElements() {
-    var elements = [];
-    var seen = new Set();
-
-    function pushElement(el) {
-      if (!el || seen.has(el)) return;
-      seen.add(el);
-      elements.push(el);
-    }
-
-    document.querySelectorAll('audio, video').forEach(pushElement);
-    audioElements.forEach(pushElement);
-    videoElements.forEach(pushElement);
-
-    return elements;
-  }
-
-  function pauseElementForMute(el) {
-    if (!el) return;
-
-    if (!el.paused && !el.ended) {
-      intendedPlaying.add(el);
-    }
-
-    try {
-      internalPause = true;
-      el.pause();
-    } finally {
-      internalPause = false;
-    }
-  }
-
-  function lockElementAudio(el) {
-    if (!el) return;
-    rememberMutedState(el);
-    pauseElementForMute(el);
-    try {
-      el.muted = true;
-    } catch (e) {
-      // Ignore mute failures for stale or invalid elements
-    }
-  }
-
-  function muteAllAudio() {
-    if (isMuted) return;
-    isMuted = true;
-    pendingResume = []; // Clear queued resumes — new mute cycle resets state
-
-    // Suspend all AudioContexts
-    audioContexts.forEach(function(ctx) {
-      if (ctx && ctx.state === 'running') {
-        ctx.suspend().catch(function() {});
-      }
-    });
-
-    // Pause first, then force mute so background playback cannot leak audio.
-    // The audibility observer below will automatically emit
-    // sekai_iframe_audio_playing_stopped once the pause/mute propagates, so
-    // we no longer post a separate sekai_iframe_audio_muted confirmation.
-    collectTrackedMediaElements().forEach(function(el) {
-      try {
-        lockElementAudio(el);
-      } catch (e) {
-        // Element might be stale or invalid
-      }
-    });
-  }
-
-  function resumeAllContexts() {
-    audioContexts.forEach(function(ctx) {
-      // Call resume() on any non-closed context, including 'running'.
-      // Reason: muteAllAudio() calls ctx.suspend(), which is async. If
-      // unmuteAllAudio() (or a touchstart retry) runs before suspend() resolves,
-      // ctx.state is still 'running' — the old suspended/interrupted-only guard
-      // would skip it, then suspend() resolves and the context stays permanently
-      // suspended. By calling resume() on 'running' contexts too, we queue a
-      // resume after the pending suspend, so both operations execute in order
-      // (suspend → resume) and the context ends up running as intended.
-      // resume() on an already-running context is a no-op per the Web Audio spec.
-      if (ctx && ctx.state !== 'closed') {
-        ctx.resume().catch(function() {});
-      }
-    });
-  }
-
-  function unmuteAllAudio() {
-    if (!isMuted) return;
-    isMuted = false;
-
-    // Resume all AudioContexts immediately (handles 'suspended' and 'interrupted')
-    resumeAllContexts();
-
-    // Restore tracked media elements to their original muted state.
-    collectTrackedMediaElements().forEach(function(el) {
-      var wasMuted = mutedElements.get(el);
-      if (wasMuted !== undefined) {
-        el.muted = wasMuted;
-      } else {
-        el.muted = false;
-      }
-    });
-    mutedElements = new WeakMap();
-
-    // Queue intended elements for playback resume.
-    // iOS pauses audio/video elements on app-switch before our JS handler runs,
-    // so simply unmuting is not enough — we must call .play() to restore.
-    // We populate pendingResume here; the persistent touchstart listener below
-    // retries on every user touch until all elements are playing again.
-    pendingResume = [];
-    intendedPlaying.forEach(function(el) {
-      if (!el || el.ended) return;
-      pendingResume.push(el);
-    });
-    // Also attempt immediately — succeeds on iOS versions / audio session states
-    // that allow .play() without a fresh user gesture.
-    pendingResume.forEach(function(el) {
-      try { if (el.paused) el.play().catch(function() {}); } catch(e) {}
-    });
-  }
-
-  // Persistent touchstart listener — fires on every user touch while unmuted.
-  // Retries AudioContext resume and HTML5 element .play() until all succeed.
-  // Registered once at script init using capture phase so game code stopPropagation
-  // cannot prevent it from running.
-  //
-  // Why persistent instead of { once: true }:
-  // - postMessage delivery is async; the user may touch before unmuteAllAudio()
-  //   processes the receive_audio_unmute message, consuming a { once: true } slot
-  // - iOS may reject .play() on the first attempt but allow it on subsequent ones
-  document.addEventListener('touchstart', function() {
-    if (isMuted) return;
-    // Retry AudioContexts on every touch (handles 'interrupted' / 'suspended')
-    resumeAllContexts();
-    // Retry HTML5 elements still waiting to resume
-    if (pendingResume.length === 0) return;
-    var toTry = pendingResume;
-    pendingResume = [];
-    toTry.forEach(function(el) {
-      try {
-        if (!el.paused) return; // Already playing — no action needed
-        el.play().catch(function() {
-          pendingResume.push(el); // Failed — retry on next touch
-        });
-      } catch(e) {
-        pendingResume.push(el);
-      }
-    });
-  }, { passive: true, capture: true });
-
-  function collectMediaFromNode(node) {
-    if (!node || node.nodeType !== 1) return [];
-    var elements = [];
-    if (node.tagName === 'AUDIO' || node.tagName === 'VIDEO') {
-      elements.push(node);
-    }
-    if (typeof node.querySelectorAll === 'function') {
-      node.querySelectorAll('audio, video').forEach(function(el) {
-        elements.push(el);
-      });
-    }
-    return elements;
-  }
-
-  document.addEventListener('play', function(event) {
-    if (!isMuted) return;
-    var target = event.target;
-    if (!target || typeof target.pause !== 'function') return;
-    lockElementAudio(target);
-  }, true);
-
-  document.addEventListener('playing', function(event) {
-    if (!isMuted) return;
-    var target = event.target;
-    if (!target || typeof target.pause !== 'function') return;
-    lockElementAudio(target);
-  }, true);
-
-  var mutationObserverTarget = document.documentElement || document;
-  if (typeof MutationObserver !== 'undefined' && mutationObserverTarget) {
-    var mediaMutationObserver = new MutationObserver(function(mutations) {
-      if (!isMuted) return;
-      mutations.forEach(function(mutation) {
-        mutation.addedNodes.forEach(function(node) {
-          collectMediaFromNode(node).forEach(function(el) {
-            lockElementAudio(el);
-          });
-        });
-      });
-    });
-    mediaMutationObserver.observe(mutationObserverTarget, {
-      childList: true,
-      subtree: true,
-    });
-  }
-
-  // ========================================================================
-  // Audibility observer — parent-facing signal for feed perf dashboard.
-  //
-  // Fact measured: "is this iframe currently producing audible output?"
-  //   - Based on real <audio>/<video> element state and AudioContext state
-  //   - Not based on parent mute/unmute commands (those only state intent)
-  //
-  // Why this matters:
-  //   - "should have played but didn't" — card visible, no start event
-  //   - "played after it shouldn't" — audio duration > card visible duration
-  // Both failure modes are invisible from the parent side alone.
-  //
-  // Multi-cycle per card is supported naturally: every mute/unmute/tab
-  // switch/user action that flips real audibility emits a new event pair.
-  // ========================================================================
-  var lastAudibleState = false;
-  var audibilityCheckScheduled = false;
-
-  function isElementAudible(el) {
-    if (!el) return false;
-    try {
-      if (el.paused || el.ended || el.muted) return false;
-      var vol = typeof el.volume === 'number' ? el.volume : 1;
-      if (vol <= 0) return false;
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  function computeAudible() {
-    var elements = collectTrackedMediaElements();
-    for (var i = 0; i < elements.length; i++) {
-      if (isElementAudible(elements[i])) return true;
-    }
-    for (var j = 0; j < audioContexts.length; j++) {
-      var ctx = audioContexts[j];
-      if (ctx && ctx.state === 'running') return true;
-    }
-    return false;
-  }
-
-  function notifyAudibilityChange() {
-    var audible = computeAudible();
-    if (audible === lastAudibleState) return;
-    lastAudibleState = audible;
-    // Feed perf 采样门禁：父层已在注入时决定这轮是否上报。
-    // 状态位 lastAudibleState 仍然更新，保证后续 started/stopped 仍能配对。
-    if (window.__SEKAI_FEED_PERF_SAMPLED__ === false) return;
-    try {
-      window.parent.postMessage({
-        type: audible
-          ? 'sekai_iframe_audio_playing_started'
-          : 'sekai_iframe_audio_playing_stopped',
-        timestamp: Date.now(),
-      }, '*');
-    } catch (e) {
-      // Ignore postMessage failures (parent window may be gone)
-    }
-  }
-
-  // scheduleAudibilityCheck is also referenced from PatchedAudioContext's
-  // statechange listener above — hoisted function declaration resolves OK.
-  function scheduleAudibilityCheck() {
-    if (audibilityCheckScheduled) return;
-    audibilityCheckScheduled = true;
-    // Microtask: batch multiple synchronous state changes (e.g. mute pauses
-    // 3 elements + suspends 1 context in sequence) into a single notification.
-    Promise.resolve().then(function() {
-      audibilityCheckScheduled = false;
-      notifyAudibilityChange();
-    });
-  }
-
-  // Capture phase so game code calling stopPropagation cannot hide these.
-  // Only react to events from <audio> / <video> elements.
-  ['play', 'playing', 'pause', 'ended', 'volumechange', 'emptied'].forEach(function(evName) {
-    document.addEventListener(evName, function(event) {
-      var target = event.target;
-      var tag = target && target.tagName;
-      if (tag !== 'AUDIO' && tag !== 'VIDEO') return;
-      scheduleAudibilityCheck();
-    }, true);
-  });
-
-  window.addEventListener('message', function(event) {
-    if (!event.data) return;
-
-    if (event.data.type === 'receive_audio_mute' ||
-        (event.data.origin === 'sekai_gaming_iframe_api' && event.data.type === 'receive_audio_mute')) {
-      muteAllAudio();
-    }
-
-    if (event.data.type === 'receive_audio_unmute' ||
-        (event.data.origin === 'sekai_gaming_iframe_api' && event.data.type === 'receive_audio_unmute')) {
-      unmuteAllAudio();
-    }
-  });
-})();
-</script>
-
-<script>
-(function() {
-  var ORIGIN = 'sekai_gaming_iframe_api';
-
-  // --- Shared helper: find <audio> elements by URL and set volume ---
-  function applyVolumeByUrl(url, volume) {
-    if (!url) return;
-    var vol = Math.max(0, Math.min(1, Number(volume)));
-    if (isNaN(vol)) return;
-    document.querySelectorAll('audio').forEach(function(el) {
-      var src = el.src || el.currentSrc || '';
-      if (src === url) {
-        el.volume = vol;
-      }
-    });
-  }
-
-  // --- Initial volume on game load ---
-  // Reads window.sekaiEditable (written into the HTML by the backend) and applies
-  // any volume values to matching <audio> elements. The LLM-generated game code
-  // does not read the volume field, so we apply it here.
-  function applyInitialVolumes() {
-    var meta = window.sekaiEditable;
-    if (!meta) return;
-    var items = (meta.music || []).concat(meta.sfx || []);
-    items.forEach(function(item) {
-      if (item.value && item.volume !== undefined && item.volume !== null) {
-        applyVolumeByUrl(item.value, item.volume);
-      }
-    });
-  }
-
-  // Run as soon as DOM is parsed, then retry after short delays to catch
-  // audio elements created during game initialization (e.g. after DOMContentLoaded).
-  if (document.readyState !== 'loading') {
-    applyInitialVolumes();
-  } else {
-    document.addEventListener('DOMContentLoaded', applyInitialVolumes);
-  }
-  setTimeout(applyInitialVolumes, 500);
-  setTimeout(applyInitialVolumes, 1500);
-
-  // --- Real-time volume control (postMessage from editor) ---
-  window.addEventListener('message', function(event) {
-    var data = event.data;
-    if (!data || data.origin !== ORIGIN) return;
-
-    var payload = data.data;
-    if (!payload) return;
-
-    if (data.type === 'set_audio_volume') {
-      // Real-time drag path: LLM code never sees this type
-      applyVolumeByUrl(payload.url, payload.volume);
-    } else if (data.type === 'apply_change' && payload.volume !== undefined && payload.volume !== null) {
-      // Commit path (on release): runs before LLM handler via capture phase
-      applyVolumeByUrl(payload.value, payload.volume);
-    }
-  }, true); // capture phase — runs before LLM game code
-})();
-</script>
-
-<script>
-(function() {
-  var ORIGIN = 'sekai_gaming_iframe_api';
-
-  // Handle the font data URL response from the parent window.
-  // The parent fetched the font bytes and encoded them as a base64 data URL
-  // so we can inject @font-face without any cross-origin network request.
-  window.addEventListener('message', function(event) {
-    var msg = event.data;
-    if (!msg || msg.type !== 'sekai_font_data_response') return;
-
-    var prevStyle = document.getElementById('sekai-font-' + msg.itemId);
-    if (prevStyle) prevStyle.parentNode.removeChild(prevStyle);
-
-    var style = document.createElement('style');
-    style.id = 'sekai-font-' + msg.itemId;
-    // font-weight range covers all weights so we don't need per-weight rules.
-    style.textContent = "@font-face { font-family: '" + msg.family + "'; src: url('" + msg.dataUrl + "'); font-weight: 100 900; }";
-    document.head.appendChild(style);
-
-    if (msg.cssVar) {
-      document.documentElement.style.setProperty(msg.cssVar, "'" + msg.family + "'");
-    }
-  });
-
-  window.addEventListener('message', function(event) {
-    var data = event.data;
-    if (!data || data.origin !== ORIGIN) return;
-    if (data.type !== 'apply_change') return;
-
-    var payload = data.data;
-    if (!payload || !payload.value) return;
-
-    var meta = window.sekaiEditable;
-    if (!meta) return;
-
-    // --- Font handling ---
-    // No type guard — LLM-generated sekaiEditable often omits the type field.
-    if (meta.fonts) {
-      for (var i = 0; i < meta.fonts.length; i++) {
-        var font = meta.fonts[i];
-        if (font.id === payload.id) {
-          // Update sekaiEditable synchronously so get_current_html saves the new value.
-          font.value = payload.value;
-          if (payload.name) font.name = payload.name;
-          // Ask the parent to fetch and return the font as a data URL.
-          // Avoids WKWebView blob-iframe CORS restrictions on external font fetches.
-          window.parent.postMessage({
-            type: 'sekai_request_font_data',
-            itemId: font.id,
-            fontUrl: payload.value,
-            family: font.fallback || ('sekai-swap-' + font.id),
-            cssVar: font.cssVar || null,
-          }, '*');
-          return;
-        }
-      }
-    }
-
-    // --- Model handling ---
-    if (meta.models) {
-      for (var j = 0; j < meta.models.length; j++) {
-        var model = meta.models[j];
-        if (model.id === payload.id) {
-          // Update sekaiEditable so get_current_html saves the new value.
-          model.value = payload.value;
-          if (payload.name) model.name = payload.name;
-          return;
-        }
-      }
-    }
-  }, true); // capture phase — runs before LLM apply_change handler
-})();
-</script>
-
-<script>
-(function() {
-  // Set styles to contain scroll and prevent propagation to parent
-  // CRITICAL: touch-action:none is the PRIMARY scroll blocker - it's handled by the compositor
-  // without waiting for JS, preventing WebView freezes during rapid swipes
-  var style = document.createElement('style');
-  style.textContent = 'html,body{overscroll-behavior:contain!important;height:100%!important;-webkit-user-select:none!important;user-select:none!important;touch-action:none!important;}';
-  document.head.appendChild(style);
-
-  var scrollableTarget = null;
-  var touchStartY = 0;
-
-  function findScrollableAncestor(el) {
-    while (el && el !== document.body && el !== document.documentElement) {
-      var cs = window.getComputedStyle(el);
-      if ((cs.overflowY === 'auto' || cs.overflowY === 'scroll') && el.scrollHeight > el.clientHeight) {
-        return el;
-      }
-      el = el.parentElement;
-    }
-    return null;
-  }
-
-  document.addEventListener('touchstart', function(e) {
-    if (e.touches.length !== 1) {
-      scrollableTarget = null;
-      return;
-    }
-
-    touchStartY = e.touches[0].clientY;
-    scrollableTarget = findScrollableAncestor(e.target);
-
-    if (scrollableTarget) {
-      scrollableTarget.style.touchAction = 'pan-y';
-    }
-  }, { passive: true, capture: true });
-
-  var resetScrollState = function() {
-    if (scrollableTarget) {
-      scrollableTarget.style.touchAction = '';
-      scrollableTarget = null;
-    }
-  };
-
-  document.addEventListener('touchend', resetScrollState, { passive: true, capture: true });
-  document.addEventListener('touchcancel', resetScrollState, { passive: true, capture: true });
-
-  // iOS WKWebView fix: CSS touch-action:none inside an iframe does NOT
-  // prevent the parent WebView scroll container from scrolling. A single
-  // non-passive touchmove handler with preventDefault() is the only
-  // reliable cross-iframe scroll blocker on iOS.
-  // Uses the original addEventListener saved by TOUCH_LISTENER_PATCH_SCRIPT
-  // to bypass the passive-force patch applied to game code listeners.
-  var origAel = window.__sekai_orig_ael;
-  if (origAel) {
-    origAel.call(document, 'touchmove', function(e) {
-      if (e.touches.length !== 1 || !e.cancelable) return;
-
-      if (!scrollableTarget) {
-        e.preventDefault();
-        return;
-      }
-
-      var st = scrollableTarget;
-      var atTop = st.scrollTop <= 0;
-      var atBottom = st.scrollTop >= st.scrollHeight - st.clientHeight - 1;
-      var currentY = e.touches[0].clientY;
-
-      if ((atTop && atBottom) ||
-          (atTop && currentY > touchStartY) ||
-          (atBottom && currentY < touchStartY)) {
-        e.preventDefault();
-      }
-    }, { passive: false, capture: true });
-  }
-
-  // Notify parent when input is focused (for keyboard handling)
-  document.addEventListener('focusin', function(e) {
-    var t = e.target;
-    if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) {
-      window.parent.postMessage({ type: 'iframe-focusin' }, '*');
-    }
-  }, true);
-
-  document.addEventListener('focusout', function(e) {
-    var t = e.target;
-    if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) {
-      // Check if focus is moving to another focusable element (input switching)
-      // If so, don't send focusout - the keyboard stays open
-      var related = e.relatedTarget;
-      if (related && (related.tagName === 'INPUT' || related.tagName === 'TEXTAREA' || related.isContentEditable)) {
-        return; // Skip focusout when switching between inputs
-      }
-      window.parent.postMessage({ type: 'iframe-focusout' }, '*');
-    }
-  }, true);
-})();
-</script><style>html,body{overscroll-behavior:contain!important;height:100%!important;-webkit-user-select:none!important;user-select:none!important;touch-action:none!important;}</style>
-
-<script>
-(function() {
-  var viewportStyle = document.createElement('style');
-  viewportStyle.id = 'sekai-viewport-style';
-  document.head.appendChild(viewportStyle);
-
-  var currentHeight = null;
-
-  function applyHeight(height) {
-    if (height === currentHeight) return;
-    currentHeight = height;
-
-    var transition = 'transition: height 0.25s cubic-bezier(0.32, 0, 0.68, 1) !important;';
-
-    if (typeof height === 'number' && height > 0) {
-      viewportStyle.textContent =
-        ':root { --sekai-viewport-height: ' + height + 'px; }' +
-        'html { height: ' + height + 'px !important; overflow: hidden !important; ' + transition + ' }' +
-        'body { height: ' + height + 'px !important; overflow: hidden !important; ' + transition + ' }';
-    } else {
-      viewportStyle.textContent =
-        ':root { --sekai-viewport-height: 100%; }' +
-        'html { height: 100% !important; overflow: hidden !important; }' +
-        'body { height: 100% !important; overflow: hidden !important; }';
-    }
-  }
-
-  window.addEventListener('message', function(event) {
-    if (event.data && event.data.type === 'viewport_height_change') {
-      var height = typeof event.data.height === 'number' ? event.data.height : null;
-      applyHeight(height);
-    }
-  });
-
-  // Notify parent that viewport handler is ready (handshake)
-  window.parent.postMessage({ type: 'viewport_ready' }, '*');
-})();
-</script><style id="sekai-viewport-style"></style>
-
-<script>
-(function() {
-  var touchStartY = null;
-  var lastSentTime = 0;
-  var SWIPE_THRESHOLD = 100;
-  var DEBOUNCE_MS = 500; // Prevent multiple events from single swipe
-
-  document.addEventListener('touchstart', function(e) {
-    if (e.touches.length === 1) {
-      touchStartY = e.touches[0].clientY;
-    }
-  }, { passive: true, capture: true });
-
-  document.addEventListener('touchend', function(e) {
-    if (touchStartY !== null && e.changedTouches.length === 1) {
-      var now = Date.now();
-      var deltaY = touchStartY - e.changedTouches[0].clientY;
-      var timeSinceLast = now - lastSentTime;
-      // Only send if above threshold AND not within debounce window
-      if (deltaY >= SWIPE_THRESHOLD && timeSinceLast >= DEBOUNCE_MS) {
-        lastSentTime = now;
-        window.parent.postMessage({
-          type: 'sekai_iframe_swipe_up',
-          deltaY: deltaY,
-          timestamp: now
-        }, '*');
-      }
-    }
-    touchStartY = null;
-  }, { passive: true, capture: true });
-
-  document.addEventListener('touchcancel', function() {
-    touchStartY = null;
-  }, { passive: true, capture: true });
-})();
-</script>
-
-<script>
-(function() {
-
-  function urlToBase64(url) {
-    return fetch(url)
-      .then(function(res) { return res.blob(); })
-      .then(function(blob) {
-        return new Promise(function(resolve) {
-          var reader = new FileReader();
-          reader.onload = function() { resolve(reader.result); };
-          reader.readAsDataURL(blob);
-        });
-      })
-      .catch(function() { return null; });
-  }
-
-  function inlineImages(doc) {
-    var imgs = Array.prototype.slice.call(doc.querySelectorAll('img[src]'));
-    return Promise.all(imgs.map(function(img) {
-      return urlToBase64(img.src).then(function(base64) {
-        if (base64) img.setAttribute('src', base64);
-      });
-    }));
-  }
-
-  function inlineCssUrls(css, baseUrl) {
-    var urlPattern = /url(s*([^)]+)s*)/g;
-    var matches = [];
-    var match;
-    while ((match = urlPattern.exec(css)) !== null) {
-      var url = match[1].trim().replace(/^['"]|['"]$/g, '');
-      if (!url.startsWith('data:') && !url.startsWith('#')) {
-        matches.push({ full: match[0], url: url });
-      }
-    }
-    if (matches.length === 0) return Promise.resolve(css);
-
-    return Promise.all(matches.map(function(m) {
-      var resolved;
-      try { resolved = new URL(m.url, baseUrl).href; } catch(e) { return Promise.resolve(null); }
-      return urlToBase64(resolved).then(function(base64) {
-        return base64 ? { original: m.full, replacement: 'url(' + base64 + ')' } : null;
-      });
-    })).then(function(results) {
-      results.forEach(function(r) {
-        if (r) css = css.split(r.original).join(r.replacement);
-      });
-      return css;
-    });
-  }
-
-  function inlineStylesheets(doc) {
-    var links = Array.prototype.slice.call(doc.querySelectorAll('link[rel="stylesheet"]'));
-    return Promise.all(links.map(function(link) {
-      var href = link.href;
-      return fetch(href)
-        .then(function(res) { return res.text(); })
-        .then(function(css) { return inlineCssUrls(css, href); })
-        .then(function(css) {
-          var style = doc.createElement('style');
-          style.textContent = css;
-          link.parentNode.replaceChild(style, link);
-        })
-        .catch(function() {});
-    }));
-  }
-
-  function captureFullSnapshot() {
-    var cloned = document.documentElement.cloneNode(true);
-    var tempDoc = document.implementation.createHTMLDocument('');
-    tempDoc.documentElement.replaceWith(cloned);
-
-    // Remove all script tags so the snapshot is a frozen DOM state —
-    // not a re-playable game. Without this, opening the file re-runs
-    // all scripts and resets the game, destroying the captured state.
-    var scripts = Array.prototype.slice.call(tempDoc.querySelectorAll('script'));
-    scripts.forEach(function(s) { s.parentNode.removeChild(s); });
-
-    return Promise.all([
-      inlineImages(tempDoc),
-      inlineStylesheets(tempDoc),
-    ]).then(function() {
-      return '<!DOCTYPE html>' + tempDoc.documentElement.outerHTML;
-    });
-  }
-
-  var _runtimeErrors = [];
-
-  window.addEventListener('error', function(e) {
-    _runtimeErrors.push({
-      type: 'error',
-      message: e.message,
-      source: e.filename,
-      line: e.lineno,
-      col: e.colno,
-      stack: e.error ? e.error.stack : null,
-      timestamp: new Date().toISOString(),
-    });
-  });
-
-  window.addEventListener('unhandledrejection', function(e) {
-    _runtimeErrors.push({
-      type: 'unhandledrejection',
-      message: e.reason instanceof Error ? e.reason.message : String(e.reason),
-      stack: e.reason instanceof Error ? e.reason.stack : null,
-      timestamp: new Date().toISOString(),
-    });
-  });
-
-  // 监听来自父页面的指令
-  window.addEventListener('message', function(e) {
-    if (!e.data || e.data.type !== 'TAKE_SNAPSHOT') return;
-
-    captureFullSnapshot().then(function(html) {
-      window.parent.postMessage({
-        type: 'SNAPSHOT_RESULT',
-        payload: {
-          html: html,
-          errors: _runtimeErrors.slice(),
-        }
-      }, '*');
-    });
-  });
-
-})();
-</script>
-
-  <base href="https://prod-data.sekai.chat/v3-games/sandbox/games/64bd242c-4f2e-4bce-bc27-294e181270b1/dist/e28f3681-15f5-492e-bcd8-599fb2e1a69b/">
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
 <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PyroBox VR 3D</title>
-    <script>window.__sekaiErrors=[];window.onerror=function(m,s,l,c,e){window.__sekaiErrors.push({m:String(m),s:s,l:l});};window.addEventListener('unhandledrejection',function(e){window.__sekaiErrors.push({m:String(e.reason)});});</script> <!-- sekai:keep=__sekaiErrors -->
-    <script>
-// window.sekaiEditable — AUTO-GENERATED. Do NOT author or edit this object.
-// The harness derives it from your game code after every write: a slot
-// exists iff the code references it. Declare config AT THE USAGE SITE.
-window.sekaiEditable = {
-  "images": [],
-  "music": [],
-  "sfx": [],
-  "fonts": [],
-  "models": [
-    { id: 'user-model-1-glass_houses_classic_roblox', label: 'glass_houses_classic_roblox_map', type: 'model', value: '', description: 'user-provided asset — required in the experience' },
-    {
-      "id": "user-model-1-crossroads",
-      "label": "User Model 1 Crossroads",
-      "type": "model",
-      "description": "user model 1 crossroads",
-      "value": "https://prod-data.sekai.chat/v3-games/chat-creation/models/86126d26-bc6f-49ab-a364-9764aa916343.glb"
-    }
-  ],
-  "videos": [],
-  "tune": [],
-  "text": [],
-  "colors": [
-    {
-      "id": "bg",
-      "label": "Bg",
-      "type": "color",
-      "cssVar": "--sekai-bg",
-      "value": "#080808"
-    }
-  ],
-  "prompts": [],
-  "voices": []
-};
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ACCESS // TERMINAL</title>
 
-</script> <!-- sekai:keep -->
-    <script>
-// window.sekaiEditable — AUTO-GENERATED. Do NOT author or edit this object.
-// The harness derives it from your game code after every write: a slot
-// exists iff the code references it. Declare config AT THE USAGE SITE.
+<style>
+:root{
+  --green:#00ff66;
+  --green2:#00c94f;
+  --dark:#020704;
+  --panel:#030b06;
+  --dim:#087a39;
+  --red:#ff3030;
+  --yellow:#dfff00;
+}
 
+*{box-sizing:border-box}
 
-</script> <!-- sekai:keep -->
-    <script>
-// window.sekaiEditable — AUTO-GENERATED. Do NOT author or edit this object.
-// The harness derives it from your game code after every write: a slot
-// exists iff the code references it. Declare config AT THE USAGE SITE.
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#000;
+  color:var(--green);
+  font-family:"Courier New",monospace;
+}
 
+body{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:
+    radial-gradient(circle at 50% 50%,#06200f 0%,#010502 48%,#000 100%);
+}
 
-</script> <!-- sekai:keep -->
-    <script>
-// window.sekaiEditable — AUTO-GENERATED. Do NOT author or edit this object.
-// The harness derives it from your game code after every write: a slot
-// exists iff the code references it. Declare config AT THE USAGE SITE.
+body:before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:repeating-linear-gradient(
+    to bottom,
+    rgba(0,255,80,.035) 0px,
+    rgba(0,255,80,.035) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  z-index:20;
+}
 
+body:after{
+  content:"";
+  position:fixed;
+  inset:-50%;
+  pointer-events:none;
+  background:radial-gradient(
+    ellipse,
+    transparent 35%,
+    rgba(0,0,0,.72) 100%
+  );
+  z-index:21;
+}
 
-</script> <!-- sekai:keep -->
-    <script>
-// window.sekaiEditable — AUTO-GENERATED. Do NOT author or edit this object.
-// The harness derives it from your game code after every write: a slot
-// exists iff the code references it. Declare config AT THE USAGE SITE.
+.terminal{
+  width:min(1100px,94vw);
+  height:min(720px,90vh);
+  position:relative;
+  border:1px solid rgba(0,255,102,.55);
+  background:rgba(1,8,4,.94);
+  box-shadow:
+    0 0 12px rgba(0,255,102,.28),
+    0 0 50px rgba(0,255,102,.10),
+    inset 0 0 40px rgba(0,255,102,.04);
+  overflow:hidden;
+}
 
+.terminal:after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:-35%;
+  height:55%;
+  pointer-events:none;
+  background:linear-gradient(
+    to bottom,
+    rgba(0,255,102,.10),
+    rgba(0,255,102,0)
+  );
+  transform:skewY(-4deg);
+  filter:blur(7px);
+  opacity:.45;
+}
 
-</script> <!-- sekai:keep -->
-    <script>
-// window.sekaiEditable — AUTO-GENERATED. Do NOT author or edit this object.
-// The harness derives it from your game code after every write: a slot
-// exists iff the code references it. Declare config AT THE USAGE SITE.
+.bar{
+  height:42px;
+  border-bottom:1px solid rgba(0,255,102,.4);
+  display:flex;
+  align-items:center;
+  padding:0 15px;
+  background:rgba(0,255,102,.035);
+  text-shadow:0 0 8px var(--green);
+}
 
+.dots{
+  display:flex;
+  gap:7px;
+  margin-right:16px;
+}
 
-</script> <!-- sekai:keep -->
-    <script src="./asset-urls.js"></script> <!-- sekai:keep -->
-    <script type="module" src="./js/sekai/bridge/audioUnlock.js"></script> <!-- sekai:keep -->
-    <script type="module" src="./js/sekai/bridge/editable.js"></script> <!-- sekai:keep -->
-    <script type="module" src="./js/sekai/bridge/assetUrls.js"></script> <!-- sekai:keep -->
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script><style>
-    * {
-      -webkit-touch-callout: none !important;
-      -webkit-user-select: none !important;
-      user-select: none !important;
-      touch-action: manipulation !important;
-      -webkit-tap-highlight-color: transparent !important;
-    }
+.dot{
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 8px var(--green);
+}
 
-    /* Additional iOS magnifier prevention for text elements */
-    input, textarea, [contenteditable] {
-      -webkit-touch-callout: none !important;
-      -webkit-user-select: none !important;
-      user-select: none !important;
-    }
+.title{
+  font-size:13px;
+  letter-spacing:2px;
+  opacity:.85;
+}
 
-    /* Prevent long-press magnifier on canvas (common in games) */
-    canvas {
-      -webkit-touch-callout: none !important;
-      -webkit-user-select: none !important;
-      user-select: none !important;
-      touch-action: manipulation !important;
-    }
-  </style>
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.128.0/build/three.module.js"
-            }
-        }
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script>
-        window.VRButton = {
-            createButton: function (renderer) {
-                const button = document.createElement('button');
-                function showEnterVR() {
-                    let currentSession = null;
-                    async function onSessionStarted(session) {
-                        session.addEventListener('end', onSessionEnded);
-                        await renderer.xr.setSession(session);
-                        button.textContent = 'EXIT VR';
-                        currentSession = session;
-                    }
-                    function onSessionEnded() {
-                        currentSession.removeEventListener('end', onSessionEnded);
-                        button.textContent = 'ENTER VR';
-                        currentSession = null;
-                    }
-                    button.style.display = '';
-                    button.style.cursor = 'pointer';
-                    button.textContent = 'ENTER VR';
-                    button.onclick = function () {
-                        if (currentSession === null) {
-                             const sessionInit = {
-                                 requiredFeatures: ['local-floor'],
-                                 optionalFeatures: ['bounded-floor', 'layers', 'hand-tracking']
-                             };
-                            navigator.xr.requestSession('immersive-vr', sessionInit).then(onSessionStarted).catch(err => {
-                                console.error("Failed to start VR session", err);
-                            });
-                        } else {
-                            currentSession.end();
-                        }
-                    };
-                }
-                function disableButton() {
-                    button.style.display = '';
-                    button.style.cursor = 'auto';
-                    button.onclick = null;
-                }
-                if ('xr' in navigator) {
-                    button.id = 'VRButton';
-                    button.style.display = 'none';
-                    navigator.xr.isSessionSupported('immersive-vr').then(function (supported) {
-                        if (supported) {
-                            showEnterVR();
-                        } else {
-                            disableButton();
-                            button.textContent = 'VR NOT SUPPORTED';
-                        }
-                    }).catch(function (exception) {
-                        disableButton();
-                        button.textContent = 'VR NOT ALLOWED';
-                        console.warn('Exception when trying to call xr.isSessionSupported', exception);
-                    });
-                    return button;
-                } else {
-                    const message = document.createElement('a');
-                    if (window.isSecureContext === false) {
-                        message.href = document.location.href.replace(/^http:/, 'https:');
-                        message.innerHTML = 'WEBXR NEEDS HTTPS';
-                    } else {
-                        message.href = 'https://webxr.info';
-                        message.innerHTML = 'WEBXR NOT AVAILABLE';
-                    }
-                    message.style.display = '';
-                    message.style.cursor = 'auto';
-                    return message;
-                }
-            }
-        };
-    </script>
+.status{
+  margin-left:auto;
+  font-size:11px;
+  opacity:.65;
+}
 
-    <style>
-        :root {
-            --bg-color: #050507;
-            --accent: #ff4500;
-            --ui-bg: rgba(12, 12, 16, 0.85);
-        }
+.screen{
+  height:calc(100% - 42px);
+  padding:18px;
+  overflow-y:auto;
+  scrollbar-width:thin;
+  scrollbar-color:var(--green) #021006;
+}
 
-        html, body {
-            height: 100%;
-            width: 100%;
-            margin: 0;
-            padding: 0;
-            background-color: var(--bg-color);
-            overflow: hidden;
-            touch-action: none;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            user-select: none;
-            -webkit-user-select: none;
-            color: #ffffff;
-        }
+.output{
+  white-space:pre-wrap;
+  word-break:break-word;
+  font-size:14px;
+  line-height:1.55;
+  text-shadow:0 0 6px rgba(0,255,102,.6);
+}
 
-        #webgl-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-        }
+.line{
+  min-height:21px;
+}
 
-        /* Overlay UI Container */
-        #ui-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 40;
-            pointer-events: none;
-        }
+.dim{color:var(--dim)}
+.yellow{color:var(--yellow)}
+.red{color:var(--red)}
+.white{color:#d5ffe3}
+.cyan{color:#00ffd5}
 
-        /* Main Menu - Minimalist (No Title, Only 2 Buttons) */
-        #main-menu {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(5, 5, 8, 0.94);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 20px;
-            z-index: 50;
-            pointer-events: auto;
-            transition: opacity 0.4s ease, visibility 0.4s ease;
-        }
+.inputline{
+  display:flex;
+  align-items:center;
+  margin-top:3px;
+  font-size:14px;
+}
 
-        #main-menu.hidden-menu {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
+.prompt{
+  color:var(--green);
+  text-shadow:0 0 8px var(--green);
+  white-space:nowrap;
+}
 
-        .menu-btn {
-            width: 260px;
-            padding: 16px 28px;
-            border-radius: 16px;
-            font-weight: 700;
-            font-size: 1.1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            touch-action: manipulation;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-        }
+#input{
+  flex:1;
+  min-width:0;
+  border:0;
+  outline:0;
+  background:transparent;
+  color:var(--green);
+  font:inherit;
+  caret-color:var(--green);
+  text-shadow:0 0 7px var(--green);
+}
 
-        .btn-play {
-            background: linear-gradient(135deg, #ff4500 0%, #d02000 100%);
-            color: #ffffff;
-            border-color: rgba(255, 69, 0, 0.5);
-            box-shadow: 0 0 25px rgba(255, 69, 0, 0.4);
-        }
+.cursor{
+  display:inline-block;
+  width:8px;
+  height:17px;
+  background:var(--green);
+  box-shadow:0 0 10px var(--green);
+  animation:blink .75s steps(1) infinite;
+  vertical-align:-3px;
+}
 
-        .btn-play:active {
-            transform: scale(0.95);
-            box-shadow: 0 0 15px rgba(255, 69, 0, 0.3);
-        }
+@keyframes blink{
+  50%{opacity:0}
+}
 
-        .btn-copy {
-            background: rgba(30, 30, 40, 0.8);
-            color: #e0e0e0;
-            border-color: rgba(255, 255, 255, 0.15);
-        }
+.glitch{
+  animation:glitch .12s linear;
+}
 
-        .btn-copy:active {
-            transform: scale(0.95);
-            background: rgba(50, 50, 65, 0.9);
-        }
+@keyframes glitch{
+  0%{transform:translate(0)}
+  25%{transform:translate(-2px,1px)}
+  50%{transform:translate(2px,-1px)}
+  75%{transform:translate(-1px,-1px)}
+  100%{transform:translate(0)}
+}
 
-        /* HUD / Controls UI */
-        #hud-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 20px;
-            box-sizing: border-box;
-            opacity: 0;
-            transition: opacity 0.5s ease;
-        }
+::selection{
+  background:var(--green);
+  color:#000;
+}
+</style>
+</head>
 
-        #hud-layer.visible-hud {
-            opacity: 1;
-        }
-
-        .hud-card {
-            pointer-events: auto;
-            background: var(--ui-bg);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 16px;
-            padding: 12px 18px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-        }
-
-        /* Palm Menu (3D/2D Material Selector) */
-        #palm-gui-overlay {
-            position: absolute;
-            bottom: 90px;
-            left: 50%;
-            transform: translateX(-50%) translateY(20px);
-            display: flex;
-            gap: 10px;
-            background: rgba(10, 10, 15, 0.9);
-            border: 1px solid rgba(255, 69, 0, 0.3);
-            border-radius: 20px;
-            padding: 10px 14px;
-            pointer-events: auto;
-            backdrop-filter: blur(12px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 15px rgba(255, 69, 0, 0.15);
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        #palm-gui-overlay.active-palm {
-            opacity: 1;
-            visibility: visible;
-            transform: translateX(-50%) translateY(0);
-        }
-
-        .mat-btn {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            width: 52px;
-            height: 52px;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1.5px solid transparent;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            touch-action: manipulation;
-        }
-
-        .mat-btn.selected {
-            border-color: var(--accent);
-            background: rgba(255, 69, 0, 0.2);
-            transform: scale(1.08);
-            box-shadow: 0 0 12px rgba(255, 69, 0, 0.4);
-        }
-
-        .mat-btn:active {
-            transform: scale(0.95);
-        }
-
-        .mat-icon {
-            width: 22px;
-            height: 22px;
-        }
-
-        .mat-label {
-            font-size: 9px;
-            font-weight: 700;
-            margin-top: 3px;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-        }
-
-        /* Toast notification */
-        #toast {
-            position: absolute;
-            top: 30px;
-            left: 50%;
-            transform: translateX(-50%) translateY(-20px);
-            background: rgba(20, 20, 25, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #fff;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-            z-index: 100;
-            pointer-events: none;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-        }
-
-        #toast.show {
-            opacity: 1;
-            visibility: visible;
-            transform: translateX(-50%) translateY(0);
-        }
-
-        #vr-btn-container {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            z-index: 45;
-            pointer-events: auto;
-        }
-    </style>
-<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.absolute{position:absolute}.right-6{right:1.5rem}.top-6{top:1.5rem}.mx-4{margin-left:1rem;margin-right:1rem}.mb-2{margin-bottom:0.5rem}.flex{display:flex}.h-1\.5{height:0.375rem}.h-16{height:4rem}.h-2{height:0.5rem}.h-3{height:0.75rem}.h-4{height:1rem}.h-5{height:1.25rem}.h-6{height:1.5rem}.h-8{height:2rem}.h-\[1px\]{height:1px}.w-1\.5{width:0.375rem}.w-16{width:4rem}.w-2{width:0.5rem}.w-3{width:0.75rem}.w-4{width:1rem}.w-5{width:1.25rem}.w-6{width:1.5rem}.w-8{width:2rem}.w-full{width:100%}.max-w-md{max-width:28rem}.max-w-xs{max-width:20rem}@keyframes ping{75%, 100%{transform:scale(2);opacity:0}}.animate-ping{animation:ping 1s cubic-bezier(0, 0, 0.2, 1) infinite}@keyframes pulse{50%{opacity:.5}}.animate-pulse{animation:pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite}.flex-col{flex-direction:column}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-1{gap:0.25rem}.gap-2{gap:0.5rem}.gap-3{gap:0.75rem}.gap-4{gap:1rem}.gap-6{gap:1.5rem}.rounded-2xl{border-radius:1rem}.rounded-3xl{border-radius:1.5rem}.rounded-full{border-radius:9999px}.border{border-width:1px}.border-emerald-500\/30{border-color:rgb(16 185 129 / 0.3)}.border-white\/10{border-color:rgb(255 255 255 / 0.1)}.bg-black\/40{background-color:rgb(0 0 0 / 0.4)}.bg-black\/60{background-color:rgb(0 0 0 / 0.6)}.bg-emerald-500{--tw-bg-opacity:1;background-color:rgb(16 185 129 / var(--tw-bg-opacity, 1))}.bg-white\/10{background-color:rgb(255 255 255 / 0.1)}.bg-gradient-to-tr{background-image:linear-gradient(to top right, var(--tw-gradient-stops))}.from-orange-600{--tw-gradient-from:#ea580c var(--tw-gradient-from-position);--tw-gradient-to:rgb(234 88 12 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.to-red-500{--tw-gradient-to:#ef4444 var(--tw-gradient-to-position)}.p-8{padding:2rem}.px-3{padding-left:0.75rem;padding-right:0.75rem}.py-1\.5{padding-top:0.375rem;padding-bottom:0.375rem}.text-center{text-align:center}.font-mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}.text-\[10px\]{font-size:10px}.text-xs{font-size:0.75rem;line-height:1rem}.font-bold{font-weight:700}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.tracking-widest{letter-spacing:0.1em}.text-amber-600{--tw-text-opacity:1;color:rgb(217 119 6 / var(--tw-text-opacity, 1))}.text-amber-700{--tw-text-opacity:1;color:rgb(180 83 9 / var(--tw-text-opacity, 1))}.text-blue-400{--tw-text-opacity:1;color:rgb(96 165 250 / var(--tw-text-opacity, 1))}.text-emerald-400{--tw-text-opacity:1;color:rgb(52 211 153 / var(--tw-text-opacity, 1))}.text-gray-200{--tw-text-opacity:1;color:rgb(229 231 235 / var(--tw-text-opacity, 1))}.text-gray-300{--tw-text-opacity:1;color:rgb(209 213 219 / var(--tw-text-opacity, 1))}.text-gray-400{--tw-text-opacity:1;color:rgb(156 163 175 / var(--tw-text-opacity, 1))}.text-gray-500{--tw-text-opacity:1;color:rgb(107 114 128 / var(--tw-text-opacity, 1))}.text-orange-400{--tw-text-opacity:1;color:rgb(251 146 60 / var(--tw-text-opacity, 1))}.text-orange-500{--tw-text-opacity:1;color:rgb(249 115 22 / var(--tw-text-opacity, 1))}.text-purple-400{--tw-text-opacity:1;color:rgb(192 132 252 / var(--tw-text-opacity, 1))}.text-red-400{--tw-text-opacity:1;color:rgb(248 113 113 / var(--tw-text-opacity, 1))}.text-sky-300{--tw-text-opacity:1;color:rgb(125 211 252 / var(--tw-text-opacity, 1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.shadow-2xl{--tw-shadow:0 25px 50px -12px rgb(0 0 0 / 0.25);--tw-shadow-colored:0 25px 50px -12px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-lg{--tw-shadow:0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-orange-500\/20{--tw-shadow-color:rgb(249 115 22 / 0.2);--tw-shadow:var(--tw-shadow-colored)}.backdrop-blur-xl{--tw-backdrop-blur:blur(24px);-webkit-backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia)}.transition{transition-property:color, background-color, border-color, fill, stroke, opacity, box-shadow, transform, filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.hover\:border-orange-500\/50:hover{border-color:rgb(249 115 22 / 0.5)}</style></head>
 <body>
 
-    <audio id="bgm" loop=""></audio>
-
-    <div id="webgl-canvas"><canvas width="776" height="1178" style="display: block; width: 388px; height: 589px;"></canvas></div>
-
-    <div id="ui-overlay">
-        <!-- Toast Notification -->
-        <div id="toast" class="show">Game code copied to clipboard!</div>
-
-        <!-- Main Menu: Title-less per user instruction, Play & Copy Code buttons only -->
-        <div id="main-menu">
-             <div class="absolute top-6 right-6 flex items-center gap-2 bg-black/40 border border-emerald-500/30 px-3 py-1.5 rounded-full text-xs font-mono text-emerald-400">
-                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                 QUEST 3S EXCLUSIVE MODE
-             </div>
-            
-             <div class="bg-black/60 border border-white/10 p-8 rounded-3xl backdrop-blur-xl flex flex-col items-center gap-6 max-w-md w-full mx-4 shadow-2xl">
-                 <div class="flex flex-col items-center gap-2 text-center">
-                     <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-orange-600 to-red-500 flex items-center justify-center shadow-lg shadow-orange-500/20 mb-2">
-                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="cpu" aria-hidden="true" class="lucide lucide-cpu w-8 h-8 text-white animate-pulse"><path d="M12 20v2"></path><path d="M12 2v2"></path><path d="M17 20v2"></path><path d="M17 2v2"></path><path d="M2 12h2"></path><path d="M2 17h2"></path><path d="M2 7h2"></path><path d="M20 12h2"></path><path d="M20 17h2"></path><path d="M20 7h2"></path><path d="M7 20v2"></path><path d="M7 2v2"></path><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="8" y="8" width="8" height="8" rx="1"></rect></svg>
-                     </div>
-                     <div class="text-xs text-orange-500 font-bold tracking-widest uppercase">Meta Quest 3 / 3S Optimized</div>
-                     <p class="text-xs text-gray-400 max-w-xs">High-fidelity WebXR physics sandbox with advanced joint-level hand tracking and dynamic thermal interactions.</p>
-                 </div>
-                
-                 <div class="w-full h-[1px] bg-white/10"></div>
-                
-                 <div class="flex flex-col gap-3 w-full">
-                     <button id="btn-play" class="menu-btn btn-play w-full">
-                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="play" aria-hidden="true" class="lucide lucide-play w-6 h-6"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"></path></svg>
-                         <span>ENTER VR SANDBOX</span>
-                     </button>
-                     <button id="btn-copy-code" class="menu-btn btn-copy w-full">
-                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="copy" aria-hidden="true" class="lucide lucide-copy w-5 h-5"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
-                         <span>COPY SOURCE CODE</span>
-                     </button>
-                 </div>
-                
-                 <div class="flex items-center gap-4 text-[10px] text-gray-500 font-mono">
-                     <div class="flex items-center gap-1">
-                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                         HAND TRACKING: OK
-                     </div>
-                     <div class="flex items-center gap-1">
-                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                         PHYSICS: 90HZ
-                     </div>
-                     <div class="flex items-center gap-1">
-                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                         WEBXR: ACTIVE
-                     </div>
-                 </div>
-             </div>
-         </div>
-
-        <!-- HUD Layer -->
-        <div id="hud-layer">
-            <div class="flex justify-between items-center">
-                <div class="hud-card flex items-center gap-3">
-                    <div class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
-                     <span class="text-xs font-semibold text-gray-300">Quest 3 Hand Tracking Active</span>
-                </div>
-                <button id="btn-toggle-palm" class="hud-card flex items-center gap-2 hover:border-orange-500/50 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="hand" aria-hidden="true" class="lucide lucide-hand w-4 h-4 text-orange-500"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"></path><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"></path><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"></path><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>
-                    <span class="text-xs font-bold text-gray-200">Show Palm Menu</span>
-                </button>
-            </div>
-
-            <!-- Palm Material Selector GUI -->
-            <div id="palm-gui-overlay" class="active-palm">
-                <button class="mat-btn selected" data-mat="FIRE" data-color="#ff4500">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="flame" aria-hidden="true" class="lucide lucide-flame mat-icon text-orange-500"><path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"></path></svg>
-                    <span class="mat-label text-orange-400">Fire</span>
-                </button>
-                <button class="mat-btn" data-mat="WOOD" data-color="#8b4513">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="trees" aria-hidden="true" class="lucide lucide-trees mat-icon text-amber-700"><path d="M10 10v.2A3 3 0 0 1 8.9 16H5a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z"></path><path d="M7 16v6"></path><path d="M13 19v3"></path><path d="M12 19h8.3a1 1 0 0 0 .7-1.7L18 14h.3a1 1 0 0 0 .7-1.7L16 9h.2a1 1 0 0 0 .8-1.7L13 3l-1.4 1.5"></path></svg>
-                    <span class="mat-label text-amber-600">Wood</span>
-                </button>
-                <button class="mat-btn" data-mat="OIL" data-color="#a855f7">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="droplet" aria-hidden="true" class="lucide lucide-droplet mat-icon text-purple-400"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"></path></svg>
-                    <span class="mat-label text-purple-400">Oil</span>
-                </button>
-                <button class="mat-btn" data-mat="ICE" data-color="#38bdf8">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="snowflake" aria-hidden="true" class="lucide lucide-snowflake mat-icon text-sky-300"><path d="m10 20-1.25-2.5L6 18"></path><path d="M10 4 8.75 6.5 6 6"></path><path d="m14 20 1.25-2.5L18 18"></path><path d="m14 4 1.25 2.5L18 6"></path><path d="m17 21-3-6h-4"></path><path d="m17 3-3 6 1.5 3"></path><path d="M2 12h6.5L10 9"></path><path d="m20 10-1.5 2 1.5 2"></path><path d="M22 12h-6.5L14 15"></path><path d="m4 10 1.5 2L4 14"></path><path d="m7 21 3-6-1.5-3"></path><path d="m7 3 3 6h4"></path></svg>
-                    <span class="mat-label text-sky-300">Ice</span>
-                </button>
-                <button class="mat-btn" data-mat="WATER" data-color="#3b82f6">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="waves" aria-hidden="true" class="lucide lucide-waves mat-icon text-blue-400"><path d="M2 12q2.5 2 5 0t5 0 5 0 5 0"></path><path d="M2 19q2.5 2 5 0t5 0 5 0 5 0"></path><path d="M2 5q2.5 2 5 0t5 0 5 0 5 0"></path></svg>
-                    <span class="mat-label text-blue-400">Water</span>
-                </button>
-                <button class="mat-btn" data-mat="WALL" data-color="#9ca3af">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="square" aria-hidden="true" class="lucide lucide-square mat-icon text-gray-400"><rect width="18" height="18" x="3" y="3" rx="2"></rect></svg>
-                    <span class="mat-label text-gray-400">Wall</span>
-                </button>
-                <button class="mat-btn" data-mat="ERASE" data-color="#ef4444">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="eraser" aria-hidden="true" class="lucide lucide-eraser mat-icon text-red-400"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"></path><path d="m5.082 11.09 8.828 8.828"></path></svg>
-                    <span class="mat-label text-red-400">Erase</span>
-                </button>
-            </div>
-        </div>
-
-        <div id="vr-btn-container"><a href="https://webxr.info" style="cursor: auto; position: relative; bottom: auto; right: auto; border-radius: 12px; padding: 10px 18px; background: rgba(255, 69, 0, 0.3); border: 1px solid rgba(255, 69, 0, 0.6); color: rgb(255, 255, 255); font-weight: bold;">WEBXR NOT AVAILABLE</a></div>
+<div class="terminal" id="terminal">
+  <div class="bar">
+    <div class="dots">
+      <span class="dot"></span>
+      <span class="dot"></span>
+      <span class="dot"></span>
     </div>
-
-    <script type="module">
-        import { applyAllEditableValues, getConfig, initBGM, vibrate } from './js/sekai/bridge/index.js';
-        import { XRHandModelFactory } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/webxr/XRHandModelFactory.js';
-
-        /* =======================================================================
-           STATE & CONFIG
-           ======================================================================= */
-        let scene, camera, renderer, controls;
-        let leftHandMesh, rightHandMesh;
-        let leftHandCollider, rightHandCollider, headCollider;
-        let crossroadsMap = null;
-        let mapColliders = [];
-        
-        let hand0, hand1;
-        let palmMenu;
-        const palmButtons = [];
-        const dynamicLights = [];
-        const MAX_DYNAMIC_LIGHTS = 4;
-        
-        let activeMaterial = 'FIRE';
-        let isEmitting = false;
-        let isPalmOpen = true;
-
-        // Sand / Particle physics engine arrays
-        const particles = [];
-        const MAX_PARTICLES = 1000;
-        const arenaBounds = { minX: -8, maxX: 8, minY: 0, maxY: 10, minZ: -8, maxZ: 8 };
-
-        // Pitch Black hand material
-        const pitchBlackMaterial = new THREE.MeshStandardMaterial({
-            color: 0x050505,
-            roughness: 0.15,
-            metalness: 0.85,
-            envMapIntensity: 0.5
-        });
-
-        // Shared geometries and materials for optimization
-        let sharedGeometries = {};
-        let sharedMaterials = {};
-
-        // Audio synth engine
-        let audioCtx = null;
-        let noiseGain = null;
-
-         // Physics props
-         const physicsProps = [];
-        
-         // Hand tracking velocity & glow
-         const handJointMeshes = [];
-         const handBoneMeshes = [];
-        
-         const handVelocities = {
-             left: new THREE.Vector3(),
-             right: new THREE.Vector3(),
-             prevLeftPos: new THREE.Vector3(),
-             prevRightPos: new THREE.Vector3(),
-             hasPrevLeft: false,
-             hasPrevRight: false
-         };
-        
-         let grabbedProp = null;
-         let grabHand = null; // 'left' or 'right'
-         const grabOffset = new THREE.Vector3();
-        
-         let leftHandLight, rightHandLight;
-
-        /* =======================================================================
-           THREE.JS VR SCENE INITIALIZATION
-           ======================================================================= */
-        function initScene() {
-            const container = document.getElementById('webgl-canvas');
-
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(getConfig('colors', 'bg', '#050507'));
-            scene.fog = new THREE.FogExp2(0x050507, 0.04);
-
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
-            camera.position.set(0, 1.6, 3);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            renderer.xr.enabled = true;
-            container.appendChild(renderer.domElement);
-
-             // Handle VR session start/end to toggle UI visibility
-             renderer.xr.addEventListener('sessionstart', () => {
-                 const mainMenu = document.getElementById('main-menu');
-                 mainMenu.classList.add('hidden-menu');
-                 document.getElementById('hud-layer').classList.add('visible-hud');
-             });
-
-             renderer.xr.addEventListener('sessionend', () => {
-                 const mainMenu = document.getElementById('main-menu');
-                 mainMenu.classList.remove('hidden-menu');
-                 document.getElementById('hud-layer').classList.remove('visible-hud');
-             });
-
-            // Initialize shared geometries and materials
-            sharedGeometries = {
-                WOOD: new THREE.BoxGeometry(0.12, 0.12, 0.12),
-                ICE: new THREE.BoxGeometry(0.14, 0.14, 0.14),
-                WALL: new THREE.BoxGeometry(0.18, 0.18, 0.18),
-                OIL: new THREE.SphereGeometry(0.06, 8, 8),
-                WATER: new THREE.SphereGeometry(0.06, 8, 8),
-                FIRE: new THREE.SphereGeometry(0.07, 8, 8)
-            };
-
-            sharedMaterials = {
-                WOOD: new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 0.8 }),
-                ICE: new THREE.MeshPhysicalMaterial({ color: 0x7dd3fc, opacity: 0.8, transparent: true, roughness: 0.1 }),
-                WALL: new THREE.MeshStandardMaterial({ color: 0x4b5563, roughness: 0.3 }),
-                OIL: new THREE.MeshStandardMaterial({ color: 0x3b0764, roughness: 0.2, metalness: 0.9 }),
-                WATER: new THREE.MeshPhysicalMaterial({ color: 0x2563eb, opacity: 0.7, transparent: true, roughness: 0.1 }),
-                FIRE_TEMPLATE: new THREE.MeshBasicMaterial({
-                    color: 0xff4500,
-                    transparent: true,
-                    opacity: 1.0,
-                    blending: THREE.AdditiveBlending
-                })
-            };
-
-            // VR Button setup
-            const vrBtn = VRButton.createButton(renderer);
-            if (vrBtn) {
-                vrBtn.style.position = 'relative';
-                vrBtn.style.bottom = 'auto';
-                vrBtn.style.right = 'auto';
-                vrBtn.style.borderRadius = '12px';
-                vrBtn.style.padding = '10px 18px';
-                vrBtn.style.background = 'rgba(255,69,0,0.3)';
-                vrBtn.style.border = '1px solid rgba(255,69,0,0.6)';
-                vrBtn.style.color = '#ffffff';
-                vrBtn.style.fontWeight = 'bold';
-                document.getElementById('vr-btn-container').appendChild(vrBtn);
-            }
-
-            // OrbitControls for Desktop fallback
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.target.set(0, 1.2, 0);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.maxPolarAngle = Math.PI / 2 + 0.05;
-
-            // Lighting Setup (Dark & Realistic)
-            const ambientLight = new THREE.AmbientLight(0x1a1a24, 0.8);
-            scene.add(ambientLight);
-
-            const mainLight = new THREE.DirectionalLight(0xffeedd, 1.2);
-            mainLight.position.set(5, 12, 6);
-            mainLight.castShadow = true;
-            mainLight.shadow.mapSize.width = 2048;
-            mainLight.shadow.mapSize.height = 2048;
-            mainLight.shadow.bias = -0.0001;
-            scene.add(mainLight);
-
-            const accentPoint = new THREE.PointLight(0xff4500, 1.5, 12);
-            accentPoint.position.set(-2, 3, -1);
-            scene.add(accentPoint);
-
-            // Arena Base & Physics Boundaries
-            createArenaBoundaries();
-
-            // Hands & Player Colliders
-            setupHandsAndColliders();
-
-            // Load User Roblox Map Asset
-            loadRobloxMap();
-
-            // Create Palm Menu
-            createPalmMenu();
-
-            // Create VR Instructions
-            createVRInstructions();
-
-            // Initialize Dynamic Lights Pool
-            initDynamicLights();
-
-             // Initialize Hand Lights
-             initHandLights();
-
-             // Spawn Physics Props
-             spawnPhysicsProps();
-
-            // Handle Window Resize
-            window.addEventListener('resize', onWindowResize);
-
-            // Pointer input for spawning & hands movement in Desktop mode
-            setupPointerEvents();
-
-            // Start Render Loop
-            renderer.setAnimationLoop(renderLoop);
-        }
-
-        /* =======================================================================
-           MAP & ENVIRONMENT (User Model Crossroads Map)
-           ======================================================================= */
-        function loadRobloxMap() {
-            const mapUrl = getConfig('models', 'user-model-1-crossroads', 'https://prod-data.sekai.chat/v3-games/chat-creation/models/86126d26-bc6f-49ab-a364-9764aa916343.glb');
-            
-            const loader = new THREE.GLTFLoader();
-            loader.load(
-                mapUrl,
-                (gltf) => {
-                    crossroadsMap = gltf.scene;
-                    
-                    crossroadsMap.position.set(0, 0, 0);
-                    crossroadsMap.scale.set(0.5, 0.5, 0.5);
-
-                    crossroadsMap.traverse((child) => {
-                        if (child.isMesh) {
-                            child.castShadow = true;
-                            child.receiveShadow = true;
-                            
-                            child.geometry.computeBoundingBox();
-                            mapColliders.push({
-                                mesh: child,
-                                localBox: child.geometry.boundingBox.clone(),
-                                worldBox: new THREE.Box3()
-                            });
-                        }
-                    });
-
-                    scene.add(crossroadsMap);
-                    
-                    setTimeout(() => {
-                        mapColliders.forEach(c => {
-                            c.mesh.updateMatrixWorld(true);
-                            c.worldBox.copy(c.localBox).applyMatrix4(c.mesh.matrixWorld);
-                        });
-                    }, 500);
-                },
-                undefined,
-                (err) => {
-                    console.warn("Crossroads GLTF failed to load, procedural fallback active", err);
-                    createFallbackCrossroads();
-                }
-            );
-        }
-
-        function createFallbackCrossroads() {
-            const group = new THREE.Group();
-            
-            const groundGeo = new THREE.BoxGeometry(20, 0.5, 20);
-            const groundMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
-            const ground = new THREE.Mesh(groundGeo, groundMat);
-            ground.position.y = -0.25;
-            group.add(ground);
-            
-            const towerGeo = new THREE.BoxGeometry(2, 6, 2);
-            const towerMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.6 });
-            
-            const tower1 = new THREE.Mesh(towerGeo, towerMat);
-            tower1.position.set(-5, 3, -5);
-            group.add(tower1);
-            
-            const tower2 = new THREE.Mesh(towerGeo, towerMat);
-            tower2.position.set(5, 3, 5);
-            group.add(tower2);
-            
-            scene.add(group);
-            
-            group.traverse((child) => {
-                if (child.isMesh) {
-                    child.geometry.computeBoundingBox();
-                    mapColliders.push({
-                        mesh: child,
-                        localBox: child.geometry.boundingBox.clone(),
-                        worldBox: new THREE.Box3()
-                    });
-                }
-            });
-            
-            setTimeout(() => {
-                mapColliders.forEach(c => {
-                    c.mesh.updateMatrixWorld(true);
-                    c.worldBox.copy(c.localBox).applyMatrix4(c.mesh.matrixWorld);
-                });
-            }, 100);
-        }
-
-        function createArenaBoundaries() {
-            // Dark reflective ground
-            const groundGeo = new THREE.PlaneGeometry(24, 24);
-            const groundMat = new THREE.MeshStandardMaterial({
-                color: 0x0a0a0e,
-                roughness: 0.4,
-                metalness: 0.6
-            });
-            const ground = new THREE.Mesh(groundGeo, groundMat);
-            ground.rotation.x = -Math.PI / 2;
-            ground.receiveShadow = true;
-            scene.add(ground);
-
-            // Grid lines overlay
-            const gridHelper = new THREE.GridHelper(24, 24, 0xff4500, 0x222233);
-            gridHelper.position.y = 0.01;
-            scene.add(gridHelper);
-
-            // Boundary light fences (Dark cyber style)
-            const borderMat = new THREE.MeshBasicMaterial({ color: 0xff4500, wireframe: true, transparent: true, opacity: 0.2 });
-            const fenceGeo = new THREE.BoxGeometry(16, 8, 16);
-            const fence = new THREE.Mesh(fenceGeo, borderMat);
-            fence.position.y = 4;
-            scene.add(fence);
-        }
-
-        /* =======================================================================
-           HAND TRACKING & PLAYER COLLIDERS (Realistic Pitch Black Hands & Head)
-           ======================================================================= */
-        function createPitchBlackHand() {
-            const handGroup = new THREE.Group();
-
-            // Palm mesh
-            const palmGeo = new THREE.BoxGeometry(0.1, 0.03, 0.11);
-            const palm = new THREE.Mesh(palmGeo, pitchBlackMaterial);
-            palm.castShadow = true;
-            handGroup.add(palm);
-
-            // Finger joints (Thumb + 4 Fingers)
-            const fingerOffsets = [
-                { x: 0.05, z: 0.04, len: 0.06 },   // Index
-                { x: 0.02, z: 0.05, len: 0.07 },   // Middle
-                { x: -0.01, z: 0.05, len: 0.065 }, // Ring
-                { x: -0.04, z: 0.04, len: 0.05 },  // Pinky
-                { x: 0.06, z: -0.02, len: 0.05 }   // Thumb
-            ];
-
-            fingerOffsets.forEach(f => {
-                const fingerGeo = new THREE.CylinderGeometry(0.011, 0.013, f.len, 12);
-                const finger = new THREE.Mesh(fingerGeo, pitchBlackMaterial);
-                finger.position.set(f.x, 0, f.z + f.len / 2);
-                finger.rotation.x = Math.PI / 2;
-                finger.castShadow = true;
-                handGroup.add(finger);
-            });
-
-            // Glowing emitter tip on palm center
-            const tipGeo = new THREE.SphereGeometry(0.015, 12, 12);
-            const tipMat = new THREE.MeshBasicMaterial({ color: 0xff4500 });
-            const emitterTip = new THREE.Mesh(tipGeo, tipMat);
-            emitterTip.name = "emitterTip";
-            emitterTip.position.set(0, 0.02, 0.04);
-            handGroup.add(emitterTip);
-
-            return handGroup;
-        }
-
-        function setupHandsAndColliders() {
-            // Left & Right Realistic Pitch Black Hands (Desktop fallback)
-            leftHandMesh = createPitchBlackHand();
-            rightHandMesh = createPitchBlackHand();
-
-            leftHandMesh.position.set(-0.3, 1.2, -0.4);
-            rightHandMesh.position.set(0.3, 1.2, -0.4);
-
-            scene.add(leftHandMesh);
-            scene.add(rightHandMesh);
-
-            // Colliders (Hands & Head)
-            const colliderMat = new THREE.MeshBasicMaterial({ visible: false });
-
-            leftHandCollider = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), colliderMat);
-            rightHandCollider = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), colliderMat);
-            headCollider = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), colliderMat);
-
-            scene.add(leftHandCollider);
-            scene.add(rightHandCollider);
-            scene.add(headCollider);
-
-            // WebXR Hand Tracking Controllers
-            hand0 = renderer.xr.getHand(0);
-            hand1 = renderer.xr.getHand(1);
-
-            hand0.addEventListener('connected', (event) => {
-                hand0.handedness = event.data.handedness;
-                setupHandVisuals(hand0);
-            });
-            hand1.addEventListener('connected', (event) => {
-                hand1.handedness = event.data.handedness;
-                setupHandVisuals(hand1);
-            });
-
-            scene.add(hand0);
-            scene.add(hand1);
-
-            // Add realistic hand models using XRHandModelFactory
-            const handModelFactory = new XRHandModelFactory();
-            const handModel0 = handModelFactory.createHandModel(hand0, 'mesh');
-            hand0.add(handModel0);
-            const handModel1 = handModelFactory.createHandModel(hand1, 'mesh');
-            hand1.add(handModel1);
-        }
-
-        function setupHandVisuals(handController) {
-             const jointMat = new THREE.MeshStandardMaterial({
-                 color: 0x0a0a0a,
-                 roughness: 0.05,
-                 metalness: 0.95,
-                 envMapIntensity: 1.0
-             });
-
-            const jointNames = [
-                'wrist',
-                'thumb-metacarpal', 'thumb-phalanx-proximal', 'thumb-phalanx-distal', 'thumb-tip',
-                'index-finger-metacarpal', 'index-finger-phalanx-proximal', 'index-finger-phalanx-intermediate', 'index-finger-phalanx-distal', 'index-finger-tip',
-                'middle-finger-metacarpal', 'middle-finger-phalanx-proximal', 'middle-finger-phalanx-intermediate', 'middle-finger-phalanx-distal', 'middle-finger-tip',
-                'ring-finger-metacarpal', 'ring-finger-phalanx-proximal', 'ring-finger-phalanx-intermediate', 'ring-finger-phalanx-distal', 'ring-finger-tip',
-                'pinky-finger-metacarpal', 'pinky-finger-phalanx-proximal', 'pinky-finger-phalanx-intermediate', 'pinky-finger-phalanx-distal', 'pinky-finger-tip'
-            ];
-
-            jointNames.forEach(name => {
-                const jointGroup = handController.joints[name];
-                if (jointGroup) {
-                    let size = 0.008;
-                    if (name.includes('tip')) size = 0.006;
-                    if (name === 'wrist') size = 0.015;
-                   
-                    const sphereGeo = new THREE.SphereGeometry(size, 16, 16);
-                     const sphere = new THREE.Mesh(sphereGeo, jointMat.clone());
-                    sphere.castShadow = true;
-                    sphere.receiveShadow = true;
-                    jointGroup.add(sphere);
-                     handJointMeshes.push(sphere);
-                }
-            });
-
-            handController.bones = [];
-           
-            const connections = [
-                ['wrist', 'thumb-metacarpal'],
-                ['thumb-metacarpal', 'thumb-phalanx-proximal'],
-                ['thumb-phalanx-proximal', 'thumb-phalanx-distal'],
-                ['thumb-phalanx-distal', 'thumb-tip'],
-                ['wrist', 'index-finger-metacarpal'],
-                ['index-finger-metacarpal', 'index-finger-phalanx-proximal'],
-                ['index-finger-phalanx-proximal', 'index-finger-phalanx-intermediate'],
-                ['index-finger-phalanx-intermediate', 'index-finger-phalanx-distal'],
-                ['index-finger-phalanx-distal', 'index-finger-tip'],
-                ['wrist', 'middle-finger-metacarpal'],
-                ['middle-finger-metacarpal', 'middle-finger-phalanx-proximal'],
-                ['middle-finger-phalanx-proximal', 'middle-finger-phalanx-intermediate'],
-                ['middle-finger-phalanx-intermediate', 'middle-finger-phalanx-distal'],
-                ['middle-finger-phalanx-distal', 'middle-finger-tip'],
-                ['wrist', 'ring-finger-metacarpal'],
-                ['ring-finger-metacarpal', 'ring-finger-phalanx-proximal'],
-                ['ring-finger-phalanx-proximal', 'ring-finger-phalanx-intermediate'],
-                ['ring-finger-phalanx-intermediate', 'ring-finger-phalanx-distal'],
-                ['ring-finger-phalanx-distal', 'ring-finger-tip'],
-                ['wrist', 'pinky-finger-metacarpal'],
-                ['pinky-finger-metacarpal', 'pinky-finger-phalanx-proximal'],
-                ['pinky-finger-phalanx-proximal', 'pinky-finger-phalanx-intermediate'],
-                ['pinky-finger-phalanx-intermediate', 'pinky-finger-phalanx-distal'],
-                ['pinky-finger-phalanx-distal', 'pinky-finger-tip']
-            ];
-
-             const boneMat = new THREE.MeshStandardMaterial({
-                 color: 0x020202,
-                 roughness: 0.3,
-                 metalness: 0.8,
-                 envMapIntensity: 0.8
-             });
-
-            connections.forEach(conn => {
-                const boneGeo = new THREE.CylinderGeometry(0.004, 0.004, 1, 8);
-                 const boneMesh = new THREE.Mesh(boneGeo, boneMat.clone());
-                boneMesh.castShadow = true;
-                boneMesh.receiveShadow = true;
-                scene.add(boneMesh);
-                 handBoneMeshes.push(boneMesh);
-               
-                handController.bones.push({
-                    mesh: boneMesh,
-                    joint1: conn[0],
-                    joint2: conn[1]
-                });
-            });
-        }
-
-        function checkHandMeshLoaded(handController) {
-            if (handController.userData.hasMeshLoaded) return true;
-            
-            let hasMesh = false;
-            handController.traverse(child => {
-                if (child.isMesh && child !== leftHandMesh && child !== rightHandMesh && !handJointMeshes.includes(child) && !handBoneMeshes.includes(child)) {
-                    hasMesh = true;
-                }
-            });
-            
-            if (hasMesh) {
-                handController.userData.hasMeshLoaded = true;
-            }
-            return hasMesh;
-        }
-
-        function updateHandMaterials(handController) {
-            if (handController.userData.materialsApplied) return;
-            
-            let applied = false;
-            handController.traverse(child => {
-                if (child.isMesh && 
-                    child !== leftHandMesh && 
-                    child !== rightHandMesh && 
-                    !handJointMeshes.includes(child) && 
-                    !handBoneMeshes.includes(child) && 
-                    child.name !== 'emitterTip') {
-                    
-                    child.material = pitchBlackMaterial;
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                    applied = true;
-                }
-            });
-            
-            if (applied) {
-                handController.userData.materialsApplied = true;
-            }
-        }
-
-        function getPinchPoint(handController) {
-            const thumbTip = handController.joints['thumb-tip'];
-            const indexTip = handController.joints['index-finger-tip'];
-            if (thumbTip && indexTip && thumbTip.visible && indexTip.visible) {
-                const p1 = new THREE.Vector3();
-                const p2 = new THREE.Vector3();
-                thumbTip.getWorldPosition(p1);
-                indexTip.getWorldPosition(p2);
-                return new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
-            }
-            return null;
-        }
-
-        function updateHandBones(handController) {
-            const hasMesh = checkHandMeshLoaded(handController);
-
-            // Hide/show manual joints
-            for (let name in handController.joints) {
-                const jointGroup = handController.joints[name];
-                if (jointGroup) {
-                    for (let i = 0; i < jointGroup.children.length; i++) {
-                        const child = jointGroup.children[i];
-                        if (handJointMeshes.includes(child)) {
-                            child.visible = !hasMesh;
-                        }
-                    }
-                }
-            }
-
-            if (!handController.visible || !handController.bones) {
-                if (handController.bones) {
-                    for (let i = 0; i < handController.bones.length; i++) {
-                        handController.bones[i].mesh.visible = false;
-                    }
-                }
-                return;
-            }
-
-            if (hasMesh) {
-                for (let i = 0; i < handController.bones.length; i++) {
-                    handController.bones[i].mesh.visible = false;
-                }
-                return;
-            }
-
-            for (let i = 0; i < handController.bones.length; i++) {
-                const bone = handController.bones[i];
-                const j1 = handController.joints[bone.joint1];
-                const j2 = handController.joints[bone.joint2];
-
-                if (j1 && j2 && j1.visible && j2.visible) {
-                    bone.mesh.visible = true;
-                    const p1 = new THREE.Vector3();
-                    const p2 = new THREE.Vector3();
-                    j1.getWorldPosition(p1);
-                    j2.getWorldPosition(p2);
-
-                    const direction = new THREE.Vector3().subVectors(p2, p1);
-                    const length = direction.length();
-                    
-                    if (length > 0.001) {
-                        bone.mesh.scale.set(1, length, 1);
-                        bone.mesh.position.copy(p1).addScaledVector(direction, 0.5);
-                        
-                        const up = new THREE.Vector3(0, 1, 0);
-                        bone.mesh.quaternion.setFromUnitVectors(up, direction.clone().normalize());
-                    }
-                } else {
-                    bone.mesh.visible = false;
-                }
-            }
-        }
-
-        function isPinching(handController) {
-            if (!handController.visible) return false;
-            const thumbTip = handController.joints['thumb-tip'];
-            const indexTip = handController.joints['index-finger-tip'];
-            if (thumbTip && indexTip) {
-                const p1 = new THREE.Vector3();
-                const p2 = new THREE.Vector3();
-                thumbTip.getWorldPosition(p1);
-                indexTip.getWorldPosition(p2);
-                return p1.distanceTo(p2) < 0.025;
-            }
-            return false;
-        }
-
-        /* =======================================================================
-           3D SANDBOX PHYSICS ENGINE & PARTICLES
-           ======================================================================= */
-        class PhysicsParticle {
-            constructor(x, y, z, vx, vy, vz, type) {
-                this.position = new THREE.Vector3(x, y, z);
-                this.velocity = new THREE.Vector3(vx, vy, vz);
-                this.type = type; // FIRE, WOOD, OIL, ICE, WATER, WALL
-                this.life = type === 'FIRE' ? 1.5 : 8.0;
-                this.maxLife = this.life;
-
-                const geo = sharedGeometries[type];
-                let mat;
-                if (type === 'FIRE') {
-                    mat = sharedMaterials.FIRE_TEMPLATE.clone();
-                } else {
-                    mat = sharedMaterials[type];
-                }
-
-                this.mesh = new THREE.Mesh(geo, mat);
-                this.mesh.position.copy(this.position);
-                this.mesh.castShadow = (type !== 'FIRE');
-                scene.add(this.mesh);
-            }
-
-            update(dt, reactiveParticles) {
-                this.life -= dt;
-
-                if (this.type !== 'WALL') {
-                    // Gravity & motion
-                    if (this.type === 'FIRE') {
-                        this.velocity.y += 2.5 * dt; // Rise up faster
-                        this.velocity.x += (Math.random() - 0.5) * 1.2 * dt; // More turbulence
-                        this.velocity.z += (Math.random() - 0.5) * 1.2 * dt;
-                        
-                        const lifeRatio = Math.max(0, this.life / this.maxLife);
-                        this.mesh.scale.setScalar(lifeRatio * 1.5);
-                        if (this.mesh.material) {
-                            this.mesh.material.opacity = lifeRatio;
-                            if (lifeRatio > 0.6) {
-                                this.mesh.material.color.setRGB(1.0, 0.8, 0.2);
-                            } else if (lifeRatio > 0.3) {
-                                this.mesh.material.color.setRGB(1.0, 0.4, 0.0);
-                            } else {
-                                this.mesh.material.color.setRGB(0.8 * (lifeRatio / 0.3), 0.1 * (lifeRatio / 0.3), 0.0);
-                            }
-                        }
-                    } else {
-                        this.velocity.y -= 7.5 * dt; // Gravity down
-                    }
-
-                    this.position.addScaledVector(this.velocity, dt);
-
-                    // Ground & Boundary collision
-                    if (this.position.y < 0.05) {
-                        this.position.y = 0.05;
-                        this.velocity.y *= -0.3; // Dampen bounce
-                        if (this.type === 'WATER' || this.type === 'OIL') {
-                            this.velocity.x += (Math.random() - 0.5) * 1.5;
-                            this.velocity.z += (Math.random() - 0.5) * 1.5;
-                        }
-                    }
-                    
-                    // Keep particles within arena bounds
-                    if (this.position.x < arenaBounds.minX) {
-                        this.position.x = arenaBounds.minX;
-                        this.velocity.x *= -0.5;
-                    } else if (this.position.x > arenaBounds.maxX) {
-                        this.position.x = arenaBounds.maxX;
-                        this.velocity.x *= -0.5;
-                    }
-                    if (this.position.z < arenaBounds.minZ) {
-                        this.position.z = arenaBounds.minZ;
-                        this.velocity.z *= -0.5;
-                    } else if (this.position.z > arenaBounds.maxZ) {
-                        this.position.z = arenaBounds.maxZ;
-                        this.velocity.z *= -0.5;
-                    }
-                }
-
-                // Collide with Crossroads map structures
-                for (let i = 0; i < mapColliders.length; i++) {
-                    const c = mapColliders[i];
-                    if (c.worldBox.containsPoint(this.position)) {
-                        resolveBoxCollision(this, c.worldBox);
-                        break;
-                    }
-                }
-
-                // Collide with player hands (joint-level)
-                const handJoints = getHandJointPositions();
-                for (let i = 0; i < handJoints.length; i++) {
-                    const joint = handJoints[i];
-                    const dist = this.position.distanceTo(joint.pos);
-                    if (dist < joint.radius + 0.02) {
-                        const normal = new THREE.Vector3().subVectors(this.position, joint.pos).normalize();
-                        this.position.copy(joint.pos).addScaledVector(normal, joint.radius + 0.02);
-                        this.velocity.reflect(normal).multiplyScalar(0.3);
-                       
-                        const handVel = joint.hand === 'left' ? handVelocities.left : handVelocities.right;
-                        this.velocity.addScaledVector(handVel, 0.5);
-                        triggerHaptic(10);
-                    }
-                }
-
-                // Collide with head
-                const headDist = this.position.distanceTo(camera.position);
-                if (headDist < 0.2) {
-                    const normal = new THREE.Vector3().subVectors(this.position, camera.position).normalize();
-                    this.position.copy(camera.position).addScaledVector(normal, 0.22);
-                    this.velocity.reflect(normal).multiplyScalar(0.5);
-                    triggerHaptic(15);
-                }
-
-                this.mesh.position.copy(this.position);
-
-                // Thermal interactions with other particles
-                if (this.type === 'FIRE') {
-                    for (let i = 0; i < reactiveParticles.length; i++) {
-                        const other = reactiveParticles[i];
-                        if (other === this || other.life <= 0) continue;
-                        const dist = this.position.distanceTo(other.position);
-                        if (dist < 0.25) {
-                            if (other.type === 'WOOD' || other.type === 'OIL') {
-                                other.type = 'FIRE';
-                                other.mesh.material = sharedMaterials.FIRE_TEMPLATE.clone();
-                                other.life = 1.2 + Math.random() * 0.6;
-                                other.maxLife = other.life;
-                                triggerHaptic(30);
-                            } else if (other.type === 'ICE') {
-                                other.type = 'WATER';
-                                other.mesh.material = sharedMaterials.WATER;
-                            } else if (other.type === 'WATER') {
-                                this.life = 0; // Fire extinguished
-                                other.life = 0; // Water evaporated
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                // Thermal interactions with physics props
-                for (let i = 0; i < physicsProps.length; i++) {
-                    const prop = physicsProps[i];
-                    const dist = this.position.distanceTo(prop.position);
-                    if (dist < prop.radius + 0.1) {
-                        if (this.type === 'FIRE') {
-                            prop.temperature += 0.15;
-                            if (prop.temperature > 0.5) {
-                                prop.onFire = true;
-                            }
-                        } else if (this.type === 'ICE') {
-                            prop.temperature = 0;
-                            prop.onFire = false;
-                        }
-                    }
-                }
-            }
-
-            destroy() {
-                scene.remove(this.mesh);
-                if (this.type === 'FIRE' && this.mesh.material) {
-                    this.mesh.material.dispose();
-                }
-            }
-        }
-
-         class PhysicsProp {
-             constructor(type, position, size, color) {
-                 this.type = type; // 'box' or 'sphere'
-                 this.position = position.clone();
-                 this.velocity = new THREE.Vector3();
-                 this.size = size;
-                 this.temperature = 0;
-                 this.onFire = false;
-                
-                 let geo, mat;
-                 if (type === 'sphere') {
-                     geo = new THREE.SphereGeometry(size, 16, 16);
-                     mat = new THREE.MeshStandardMaterial({
-                         color: color,
-                         roughness: 0.3,
-                         metalness: 0.8,
-                     });
-                     this.radius = size;
-                 } else {
-                     geo = new THREE.BoxGeometry(size.x, size.y, size.z);
-                     mat = new THREE.MeshStandardMaterial({
-                         color: color,
-                         roughness: 0.5,
-                         metalness: 0.2,
-                     });
-                     this.radius = Math.max(size.x, size.y, size.z) * 0.5;
-                 }
-                
-                 this.mesh = new THREE.Mesh(geo, mat);
-                 this.mesh.position.copy(this.position);
-                 this.mesh.castShadow = true;
-                 this.mesh.receiveShadow = true;
-                 scene.add(this.mesh);
-             }
-            
-             update(dt) {
-                 if (grabbedProp === this) {
-                     this.velocity.set(0, 0, 0);
-                     this.mesh.position.copy(this.position);
-                     return;
-                 }
-                
-                 // Apply gravity
-                 this.velocity.y -= 9.8 * dt;
-                 // Apply air resistance
-                 this.velocity.multiplyScalar(1 - 0.4 * dt);
-                
-                 // Update position
-                 this.position.addScaledVector(this.velocity, dt);
-                
-                 // Ground collision
-                 if (this.position.y < this.radius) {
-                     this.position.y = this.radius;
-                     this.velocity.y = -this.velocity.y * 0.4;
-                     this.velocity.x *= 0.8;
-                     this.velocity.z *= 0.8;
-                 }
-                
-                 // Keep within arena bounds
-                 const margin = this.radius;
-                 if (this.position.x < arenaBounds.minX + margin) {
-                     this.position.x = arenaBounds.minX + margin;
-                     this.velocity.x = -this.velocity.x * 0.5;
-                 }
-                 if (this.position.x > arenaBounds.maxX - margin) {
-                     this.position.x = arenaBounds.maxX - margin;
-                     this.velocity.x = -this.velocity.x * 0.5;
-                 }
-                 if (this.position.z < arenaBounds.minZ + margin) {
-                     this.position.z = arenaBounds.minZ + margin;
-                     this.velocity.z = -this.velocity.z * 0.5;
-                 }
-                 if (this.position.z > arenaBounds.maxZ - margin) {
-                     this.position.z = arenaBounds.maxZ - margin;
-                     this.velocity.z = -this.velocity.z * 0.5;
-                 }
-                
-                 // Map collisions
-                 for (let c of mapColliders) {
-                     if (c.worldBox.intersectsSphere({ center: this.position, radius: this.radius })) {
-                         const closestPoint = new THREE.Vector3();
-                         c.worldBox.clampPoint(this.position, closestPoint);
-                         const dir = new THREE.Vector3().subVectors(this.position, closestPoint);
-                         const dist = dir.length();
-                         if (dist < this.radius) {
-                             const normal = dist > 0.0001 ? dir.normalize() : new THREE.Vector3(0, 1, 0);
-                             this.position.copy(closestPoint).addScaledVector(normal, this.radius);
-                             this.velocity.reflect(normal).multiplyScalar(0.4);
-                         }
-                     }
-                 }
-                
-                 // Hand collisions (pushing)
-                 const handJoints = getHandJointPositions();
-                 handJoints.forEach(joint => {
-                     const dist = this.position.distanceTo(joint.pos);
-                     if (dist < this.radius + joint.radius) {
-                         const normal = new THREE.Vector3().subVectors(this.position, joint.pos).normalize();
-                         this.position.copy(joint.pos).addScaledVector(normal, this.radius + joint.radius);
-                        
-                         const handVel = joint.hand === 'left' ? handVelocities.left : handVelocities.right;
-                         const pushForce = handVel.length() > 0.1 ? handVel : normal.multiplyScalar(1.5);
-                         this.velocity.copy(pushForce).multiplyScalar(1.2);
-                         triggerHaptic(20);
-                     }
-                 });
-                
-                 // Temperature decay & Fire emission
-                 if (this.temperature > 0) {
-                     this.temperature -= 0.1 * dt;
-                     if (this.temperature < 0) this.temperature = 0;
-                 }
-                
-                 if (this.onFire) {
-                     this.temperature -= 0.05 * dt;
-                     if (this.temperature <= 0) {
-                         this.onFire = false;
-                     }
-                    
-                     if (Math.random() < 0.15) {
-                         const spawnPos = this.position.clone().add(new THREE.Vector3(
-                             (Math.random() - 0.5) * this.radius,
-                             (Math.random() - 0.5) * this.radius,
-                             (Math.random() - 0.5) * this.radius
-                         ));
-                         spawnParticle(spawnPos, new THREE.Vector3(0, 1, 0), 'FIRE');
-                     }
-                    
-                     this.mesh.material.emissive.setHex(0xff4500);
-                     this.mesh.material.emissiveIntensity = this.temperature * 2.0;
-                 } else {
-                     this.mesh.material.emissive.setHex(0x000000);
-                     this.mesh.material.emissiveIntensity = 0;
-                 }
-                
-                 this.mesh.position.copy(this.position);
-             }
-            
-             destroy() {
-                 scene.remove(this.mesh);
-                 if (this.mesh.geometry) this.mesh.geometry.dispose();
-                 if (this.mesh.material) this.mesh.material.dispose();
-             }
-         }
-
-         function spawnPhysicsProps() {
-             const colors = [0xff5555, 0x55ff55, 0x5555ff, 0xffff55, 0xff55ff, 0x55ffff];
-            
-             // Spheres
-             for (let i = 0; i < 6; i++) {
-                 const pos = new THREE.Vector3(
-                     (Math.random() - 0.5) * 4,
-                     1.5 + Math.random() * 2,
-                     (Math.random() - 0.5) * 4
-                 );
-                 const radius = 0.15 + Math.random() * 0.1;
-                 const color = colors[i % colors.length];
-                 const prop = new PhysicsProp('sphere', pos, radius, color);
-                 physicsProps.push(prop);
-             }
-            
-             // Boxes
-             for (let i = 0; i < 6; i++) {
-                 const pos = new THREE.Vector3(
-                     (Math.random() - 0.5) * 4,
-                     1.5 + Math.random() * 2,
-                     (Math.random() - 0.5) * 4
-                 );
-                 const size = new THREE.Vector3(
-                     0.2 + Math.random() * 0.15,
-                     0.2 + Math.random() * 0.15,
-                     0.2 + Math.random() * 0.15
-                 );
-                 const color = colors[(i + 3) % colors.length];
-                 const prop = new PhysicsProp('box', pos, size, color);
-                 physicsProps.push(prop);
-             }
-         }
-
-         function resolvePropCollisions() {
-             for (let i = 0; i < physicsProps.length; i++) {
-                 for (let j = i + 1; j < physicsProps.length; j++) {
-                     const p1 = physicsProps[i];
-                     const p2 = physicsProps[j];
-                    
-                     const dist = p1.position.distanceTo(p2.position);
-                     const minDist = p1.radius + p2.radius;
-                    
-                     if (dist < minDist) {
-                         const normal = new THREE.Vector3().subVectors(p2.position, p1.position).normalize();
-                         const overlap = minDist - dist;
-                        
-                         p1.position.addScaledVector(normal, -overlap * 0.5);
-                         p2.position.addScaledVector(normal, overlap * 0.5);
-                        
-                         const relativeVelocity = new THREE.Vector3().subVectors(p2.velocity, p1.velocity);
-                         const velAlongNormal = relativeVelocity.dot(normal);
-                        
-                         if (velAlongNormal < 0) {
-                             const restitution = 0.5;
-                             const impulseScalar = -(1 + restitution) * velAlongNormal / 2;
-                            
-                             p1.velocity.addScaledVector(normal, -impulseScalar);
-                             p2.velocity.addScaledVector(normal, impulseScalar);
-                         }
-                     }
-                 }
-             }
-         }
-
-         function getHandJointPositions() {
-             const positions = [];
-            
-             if (renderer.xr.isPresenting) {
-                 [hand0, hand1].forEach(hand => {
-                     if (hand.visible) {
-                         for (let name in hand.joints) {
-                             const joint = hand.joints[name];
-                             if (joint && joint.visible) {
-                                 const pos = new THREE.Vector3();
-                                 joint.getWorldPosition(pos);
-                                 let radius = 0.015;
-                                 if (name === 'wrist') radius = 0.04;
-                                 else if (name.includes('tip')) radius = 0.012;
-                                 positions.push({ pos, radius, name, hand: hand.handedness });
-                             }
-                         }
-                     }
-                 });
-             } else {
-                 positions.push({ pos: leftHandMesh.position, radius: 0.08, name: 'wrist', hand: 'left' });
-                 positions.push({ pos: rightHandMesh.position, radius: 0.08, name: 'wrist', hand: 'right' });
-             }
-            
-             return positions;
-         }
-
-         function updateHandVelocities(dt) {
-             if (dt <= 0) return;
-            
-             let leftHand = null;
-             let rightHand = null;
-             if (hand0.handedness === 'left') leftHand = hand0;
-             if (hand0.handedness === 'right') rightHand = hand0;
-             if (hand1.handedness === 'left') leftHand = hand1;
-             if (hand1.handedness === 'right') rightHand = hand1;
-            
-             if (leftHand && leftHand.joints['wrist'] && leftHand.visible) {
-                 const pos = new THREE.Vector3();
-                 leftHand.joints['wrist'].getWorldPosition(pos);
-                 if (handVelocities.hasPrevLeft) {
-                     handVelocities.left.subVectors(pos, handVelocities.prevLeftPos).divideScalar(dt);
-                 }
-                 handVelocities.prevLeftPos.copy(pos);
-                 handVelocities.hasPrevLeft = true;
-             } else {
-                 handVelocities.hasPrevLeft = false;
-                 handVelocities.left.set(0, 0, 0);
-             }
-            
-             if (rightHand && rightHand.joints['wrist'] && rightHand.visible) {
-                 const pos = new THREE.Vector3();
-                 rightHand.joints['wrist'].getWorldPosition(pos);
-                 if (handVelocities.hasPrevRight) {
-                     handVelocities.right.subVectors(pos, handVelocities.prevRightPos).divideScalar(dt);
-                 }
-                 handVelocities.prevRightPos.copy(pos);
-                 handVelocities.hasPrevRight = true;
-             } else {
-                 handVelocities.hasPrevRight = false;
-                 handVelocities.right.set(0, 0, 0);
-             }
-         }
-
-         function checkGrabbing() {
-             let leftHand = null;
-             let rightHand = null;
-             if (hand0.handedness === 'left') leftHand = hand0;
-             if (hand0.handedness === 'right') rightHand = hand0;
-             if (hand1.handedness === 'left') leftHand = hand1;
-             if (hand1.handedness === 'right') rightHand = hand1;
-            
-             if (rightHand && rightHand.visible) {
-                 const pinching = isPinching(rightHand);
-                 const indexTip = rightHand.joints['index-finger-tip'];
-                 if (indexTip) {
-                     const tipPos = new THREE.Vector3();
-                     indexTip.getWorldPosition(tipPos);
-                    
-                     if (pinching && !grabbedProp) {
-                         let closest = null;
-                         let minDist = 0.4;
-                         physicsProps.forEach(prop => {
-                             const dist = prop.position.distanceTo(tipPos);
-                             if (dist < minDist) {
-                                 minDist = dist;
-                                 closest = prop;
-                             }
-                         });
-                         if (closest) {
-                             grabbedProp = closest;
-                             grabHand = 'right';
-                             grabOffset.subVectors(closest.position, tipPos);
-                             triggerHaptic(50);
-                         }
-                     } else if (!pinching && grabbedProp && grabHand === 'right') {
-                         grabbedProp.velocity.copy(handVelocities.right).multiplyScalar(1.2);
-                         grabbedProp = null;
-                         grabHand = null;
-                         triggerHaptic(30);
-                     }
-                 }
-             }
-            
-             if (leftHand && leftHand.visible) {
-                 const pinching = isPinching(leftHand);
-                 const indexTip = leftHand.joints['index-finger-tip'];
-                 if (indexTip) {
-                     const tipPos = new THREE.Vector3();
-                     indexTip.getWorldPosition(tipPos);
-                    
-                     if (pinching && !grabbedProp) {
-                         let closest = null;
-                         let minDist = 0.4;
-                         physicsProps.forEach(prop => {
-                             const dist = prop.position.distanceTo(tipPos);
-                             if (dist < minDist) {
-                                 minDist = dist;
-                                 closest = prop;
-                             }
-                         });
-                         if (closest) {
-                             grabbedProp = closest;
-                             grabHand = 'left';
-                             grabOffset.subVectors(closest.position, tipPos);
-                             triggerHaptic(50);
-                         }
-                     } else if (!pinching && grabbedProp && grabHand === 'left') {
-                         grabbedProp.velocity.copy(handVelocities.left).multiplyScalar(1.2);
-                         grabbedProp = null;
-                         grabHand = null;
-                         triggerHaptic(30);
-                     }
-                 }
-             }
-            
-             if (grabbedProp) {
-                 let activeHand = null;
-                 if (grabHand === 'right') activeHand = rightHand;
-                 if (grabHand === 'left') activeHand = leftHand;
-                
-                 if (activeHand && activeHand.visible) {
-                     const indexTip = activeHand.joints['index-finger-tip'];
-                     if (indexTip) {
-                         const tipPos = new THREE.Vector3();
-                         indexTip.getWorldPosition(tipPos);
-                         grabbedProp.position.copy(tipPos).add(grabOffset);
-                     }
-                 } else {
-                     grabbedProp = null;
-                     grabHand = null;
-                 }
-             }
-         }
-
-         function initHandLights() {
-             leftHandLight = new THREE.PointLight(0xff4500, 0, 3);
-             rightHandLight = new THREE.PointLight(0xff4500, 0, 3);
-             scene.add(leftHandLight);
-             scene.add(rightHandLight);
-         }
-
-         function updateHandLights() {
-             const colorHex = materialsList.find(m => m.name === activeMaterial)?.color || 0xff4500;
-            
-             let leftHandPos = null;
-             let rightHandPos = null;
-            
-             if (renderer.xr.isPresenting) {
-                 let leftHand = null;
-                 let rightHand = null;
-                 if (hand0.handedness === 'left') leftHand = hand0;
-                 if (hand0.handedness === 'right') rightHand = hand0;
-                 if (hand1.handedness === 'left') leftHand = hand1;
-                 if (hand1.handedness === 'right') rightHand = hand1;
-                
-                 if (leftHand && leftHand.visible && leftHand.joints['wrist']) {
-                     leftHandPos = new THREE.Vector3();
-                     leftHand.joints['wrist'].getWorldPosition(leftHandPos);
-                 }
-                 if (rightHand && rightHand.visible && rightHand.joints['wrist']) {
-                     rightHandPos = new THREE.Vector3();
-                     rightHand.joints['wrist'].getWorldPosition(rightHandPos);
-                 }
-             } else {
-                 leftHandPos = leftHandMesh.position;
-                 rightHandPos = rightHandMesh.position;
-             }
-            
-             if (leftHandPos) {
-                 leftHandLight.position.copy(leftHandPos);
-                 leftHandLight.color.setHex(colorHex);
-                 leftHandLight.intensity = 1.5;
-             } else {
-                 leftHandLight.intensity = 0;
-             }
-            
-             if (rightHandPos) {
-                 rightHandLight.position.copy(rightHandPos);
-                 rightHandLight.color.setHex(colorHex);
-                 rightHandLight.intensity = 1.5;
-             } else {
-                 rightHandLight.intensity = 0;
-             }
-         }
-
-         function updateHandGlow() {
-             const colorHex = materialsList.find(m => m.name === activeMaterial)?.color || 0xff4500;
-            
-             pitchBlackMaterial.emissive.setHex(colorHex);
-             pitchBlackMaterial.emissiveIntensity = 0.25;
-
-             handJointMeshes.forEach(mesh => {
-                 if (mesh.material) {
-                     mesh.material.emissive.setHex(colorHex);
-                     mesh.material.emissiveIntensity = 0.6;
-                 }
-             });
-            
-             handBoneMeshes.forEach(mesh => {
-                 if (mesh.material) {
-                     mesh.material.emissive.setHex(colorHex);
-                     mesh.material.emissiveIntensity = 0.2;
-                 }
-             });
-            
-             leftHandMesh.traverse(child => {
-                 if (child.isMesh && child.name !== 'emitterTip') {
-                     if (child.material) {
-                         child.material.emissive?.setHex(colorHex);
-                         child.material.emissiveIntensity = 0.1;
-                     }
-                 }
-             });
-             rightHandMesh.traverse(child => {
-                 if (child.isMesh && child.name !== 'emitterTip') {
-                     if (child.material) {
-                         child.material.emissive?.setHex(colorHex);
-                         child.material.emissiveIntensity = 0.1;
-                     }
-                 }
-             });
-         }
-
-        function resolveBoxCollision(particle, box) {
-            const p = particle.position;
-            const min = box.min;
-            const max = box.max;
-            
-            let distMinX = p.x - min.x;
-            let distMaxX = max.x - p.x;
-            let distMinY = p.y - min.y;
-            let distMaxY = max.y - p.y;
-            let distMinZ = p.z - min.z;
-            let distMaxZ = max.z - p.z;
-            
-            let minDist = Math.min(distMinX, distMaxX, distMinY, distMaxY, distMinZ, distMaxZ);
-            
-            if (minDist === distMinX) {
-                p.x = min.x - 0.02;
-                particle.velocity.x = -Math.abs(particle.velocity.x) * 0.3;
-            } else if (minDist === distMaxX) {
-                p.x = max.x + 0.02;
-                particle.velocity.x = Math.abs(particle.velocity.x) * 0.3;
-            } else if (minDist === distMinY) {
-                p.y = min.y - 0.02;
-                particle.velocity.y = -Math.abs(particle.velocity.y) * 0.3;
-            } else if (minDist === distMaxY) {
-                p.y = max.y + 0.02;
-                particle.velocity.y = Math.abs(particle.velocity.y) * 0.3;
-            } else if (minDist === distMinZ) {
-                p.z = min.z - 0.02;
-                particle.velocity.z = -Math.abs(particle.velocity.z) * 0.3;
-            } else if (minDist === distMaxZ) {
-                p.z = max.z + 0.02;
-                particle.velocity.z = Math.abs(particle.velocity.z) * 0.3;
-            }
-        }
-
-        function spawnParticle(origin, direction, materialType) {
-            if (materialType === 'ERASE') {
-                // Clear nearby particles
-                for (let i = particles.length - 1; i >= 0; i--) {
-                    if (particles[i].position.distanceTo(origin) < 1.5) {
-                        particles[i].destroy();
-                        particles.splice(i, 1);
-                    }
-                }
-                return;
-            }
-
-            if (particles.length >= MAX_PARTICLES) {
-                const p = particles.shift();
-                p.destroy();
-            }
-
-            const speed = materialType === 'FIRE' ? 4.5 : 2.0;
-            const spread = 0.3;
-            const vx = direction.x * speed + (Math.random() - 0.5) * spread;
-            const vy = direction.y * speed + (Math.random() - 0.5) * spread;
-            const vz = direction.z * speed + (Math.random() - 0.5) * spread;
-
-            const p = new PhysicsParticle(origin.x, origin.y, origin.z, vx, vy, vz, materialType);
-            particles.push(p);
-
-            playSynthSfx(materialType);
-            triggerHaptic(15);
-        }
-
-        /* =======================================================================
-           MAP TOUCH DETECTION & HAPTICS
-           ======================================================================= */
-        function checkCollisions() {
-            let leftHandPos = null;
-            let rightHandPos = null;
-            
-            if (renderer.xr.isPresenting) {
-                let leftHand = null;
-                let rightHand = null;
-                if (hand0.handedness === 'left') leftHand = hand0;
-                if (hand0.handedness === 'right') rightHand = hand0;
-                if (hand1.handedness === 'left') leftHand = hand1;
-                if (hand1.handedness === 'right') rightHand = hand1;
-                
-                if (leftHand && leftHand.joints['wrist']) {
-                    leftHandPos = new THREE.Vector3();
-                    leftHand.joints['wrist'].getWorldPosition(leftHandPos);
-                }
-                if (rightHand && rightHand.joints['wrist']) {
-                    rightHandPos = new THREE.Vector3();
-                    rightHand.joints['wrist'].getWorldPosition(rightHandPos);
-                }
-            } else {
-                leftHandPos = leftHandMesh.position;
-                rightHandPos = rightHandMesh.position;
-            }
-            
-            headCollider.position.copy(camera.position);
-            if (leftHandPos) leftHandCollider.position.copy(leftHandPos);
-            if (rightHandPos) rightHandCollider.position.copy(rightHandPos);
-            
-            const playerColliders = [];
-            if (leftHandPos) playerColliders.push(leftHandCollider);
-            if (rightHandPos) playerColliders.push(rightHandCollider);
-            playerColliders.push(headCollider);
-            
-            playerColliders.forEach(col => {
-                for (let c of mapColliders) {
-                    const colBox = new THREE.Box3().setFromObject(col);
-                    if (c.worldBox.intersectsBox(colBox)) {
-                        triggerHaptic(25);
-                        break;
-                    }
-                }
-            });
-        }
-
-        /* =======================================================================
-           PALM MENU & VR INSTRUCTIONS
-           ======================================================================= */
-        const materialsList = [
-            { name: 'FIRE', color: 0xff4500, label: 'Fire' },
-            { name: 'WOOD', color: 0x8b4513, label: 'Wood' },
-            { name: 'OIL', color: 0xa855f7, label: 'Oil' },
-            { name: 'ICE', color: 0x38bdf8, label: 'Ice' },
-            { name: 'WATER', color: 0x3b82f6, label: 'Water' },
-            { name: 'WALL', color: 0x9ca3af, label: 'Wall' },
-            { name: 'ERASE', color: 0xef4444, label: 'Erase' }
-        ];
-
-        function createPalmMenu() {
-            palmMenu = new THREE.Group();
-            palmMenu.visible = false;
-            scene.add(palmMenu);
-
-            materialsList.forEach((mat, index) => {
-                const btnGroup = new THREE.Group();
-                
-                const geo = new THREE.SphereGeometry(0.02, 16, 16);
-                const material = new THREE.MeshStandardMaterial({
-                    color: mat.color,
-                    emissive: mat.color,
-                    emissiveIntensity: 0.4,
-                    roughness: 0.2,
-                    metalness: 0.8
-                });
-                const mesh = new THREE.Mesh(geo, material);
-                btnGroup.add(mesh);
-
-                const angle = (index / (materialsList.length - 1) - 0.5) * Math.PI * 0.6;
-                const radius = 0.1;
-                btnGroup.position.set(Math.sin(angle) * radius, 0.04, -Math.cos(angle) * radius);
-                
-                btnGroup.userData = { material: mat.name, color: mat.color };
-                palmMenu.add(btnGroup);
-                palmButtons.push(btnGroup);
-            });
-        }
-
-        function updatePalmMenu(leftHandPose, camera) {
-            if (!leftHandPose || !leftHandPose.visible) {
-                palmMenu.visible = false;
-                return;
-            }
-
-            const wrist = leftHandPose.joints['wrist'];
-            const index = leftHandPose.joints['index-finger-metacarpal'];
-            const pinky = leftHandPose.joints['pinky-finger-metacarpal'];
-
-            if (!wrist || !index || !pinky) {
-                palmMenu.visible = false;
-                return;
-            }
-
-            const wristPos = new THREE.Vector3();
-            const indexPos = new THREE.Vector3();
-            const pinkyPos = new THREE.Vector3();
-
-            wrist.getWorldPosition(wristPos);
-            index.getWorldPosition(indexPos);
-            pinky.getWorldPosition(pinkyPos);
-
-            const v1 = new THREE.Vector3().subVectors(indexPos, wristPos).normalize();
-            const v2 = new THREE.Vector3().subVectors(pinkyPos, wristPos).normalize();
-            const normal = new THREE.Vector3().crossVectors(v1, v2).normalize();
-
-            const toCam = new THREE.Vector3().subVectors(camera.position, indexPos).normalize();
-            const dot = normal.dot(toCam);
-
-            const isFacing = dot > 0.4;
-
-            if (isFacing) {
-                palmMenu.visible = true;
-                const targetPos = indexPos.clone().addScaledVector(normal, 0.06);
-                palmMenu.position.lerp(targetPos, 0.2);
-                palmMenu.lookAt(camera.position);
-            } else {
-                palmMenu.visible = false;
-            }
-        }
-
-        function checkPalmMenuInteraction(rightHandPose) {
-            if (!palmMenu.visible || !rightHandPose || !rightHandPose.visible) return;
-
-            const indexTip = rightHandPose.joints['index-finger-tip'];
-            if (!indexTip) return;
-
-            const indexTipPos = new THREE.Vector3();
-            indexTip.getWorldPosition(indexTipPos);
-
-            palmButtons.forEach(btn => {
-                const btnWorldPos = new THREE.Vector3();
-                btn.getWorldPosition(btnWorldPos);
-                const dist = indexTipPos.distanceTo(btnWorldPos);
-
-                if (dist < 0.03) {
-                    if (activeMaterial !== btn.userData.material) {
-                        activeMaterial = btn.userData.material;
-                        triggerHaptic(35);
-                        
-                        btn.scale.set(1.4, 1.4, 1.4);
-                        setTimeout(() => {
-                            btn.scale.set(1, 1, 1);
-                        }, 200);
-
-                        update2DUISelection(activeMaterial);
-                    }
-                }
-            });
-        }
-
-        function update2DUISelection(material) {
-            document.querySelectorAll('.mat-btn').forEach(btn => {
-                if (btn.dataset.mat === material) {
-                    btn.classList.add('selected');
-                } else {
-                    btn.classList.remove('selected');
-                }
-            });
-        }
-
-        function createVRInstructions() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 512;
-            canvas.height = 256;
-            const ctx = canvas.getContext('2d');
-            
-            ctx.fillStyle = 'rgba(10, 10, 15, 0.95)';
-            ctx.fillRect(0, 0, 512, 256);
-            
-            ctx.strokeStyle = '#ff4500';
-            ctx.lineWidth = 6;
-            ctx.strokeRect(0, 0, 512, 256);
-            
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 28px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('QUEST 3 HAND TRACKING ONLY', 256, 50);
-            
-            ctx.font = '20px sans-serif';
-            ctx.fillStyle = '#cccccc';
-            ctx.fillText('• Pinch fingers to emit particles', 256, 100);
-            ctx.fillText('• Show left palm to open material menu', 256, 140);
-            ctx.fillText('• Touch Crossroads map to interact', 256, 180);
-            ctx.fillText('• Select materials with right index finger', 256, 220);
-            
-            const texture = new THREE.CanvasTexture(canvas);
-            const geo = new THREE.PlaneGeometry(1.2, 0.6);
-            const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-            const mesh = new THREE.Mesh(geo, mat);
-            
-            mesh.position.set(0, 1.5, -2);
-            scene.add(mesh);
-        }
-
-        /* =======================================================================
-           DYNAMIC LIGHTS POOL
-           ====================================================================== */
-        function initDynamicLights() {
-            for (let i = 0; i < MAX_DYNAMIC_LIGHTS; i++) {
-                const light = new THREE.PointLight(0xff4500, 0, 4);
-                scene.add(light);
-                dynamicLights.push(light);
-            }
-        }
-
-        function updateDynamicLights() {
-            const fireParticles = particles.filter(p => p.type === 'FIRE');
-            
-            dynamicLights.forEach(light => {
-                light.intensity = 0;
-            });
-            
-            for (let i = 0; i < Math.min(fireParticles.length, MAX_DYNAMIC_LIGHTS); i++) {
-                const p = fireParticles[i];
-                const light = dynamicLights[i];
-                light.position.copy(p.position);
-                light.intensity = 1.5;
-                light.color.setHex(0xff4500);
-            }
-        }
-
-        /* =======================================================================
-           PROCEDURAL AUDIO SYNTH (SFX)
-           ======================================================================= */
-        function initAudioEngine() {
-            if (audioCtx) return;
-            try {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                
-                const bufferSize = audioCtx.sampleRate * 2;
-                const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-                const output = noiseBuffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    output[i] = Math.random() * 2 - 1;
-                }
-
-                const whiteNoise = audioCtx.createBufferSource();
-                whiteNoise.buffer = noiseBuffer;
-                whiteNoise.loop = true;
-
-                const filter = audioCtx.createBiquadFilter();
-                filter.type = 'bandpass';
-                filter.frequency.value = 600;
-
-                noiseGain = audioCtx.createGain();
-                noiseGain.gain.value = 0;
-
-                whiteNoise.connect(filter);
-                filter.connect(noiseGain);
-                noiseGain.connect(audioCtx.destination);
-                whiteNoise.start();
-            } catch (e) {
-                console.warn("Web Audio synth error", e);
-            }
-        }
-
-        function playSynthSfx(type) {
-            if (!audioCtx) initAudioEngine();
-            if (!audioCtx || audioCtx.state !== 'running') return;
-
-            const now = audioCtx.currentTime;
-            if (type === 'FIRE') {
-                noiseGain.gain.setValueAtTime(0.3, now);
-                noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-            }
-        }
-
-        function triggerHaptic(ms = 20) {
-            try {
-                vibrate(ms);
-            } catch(e) {}
-        }
-
-        /* =======================================================================
-           POINTER & DESKTOP FALLBACK CONTROLS
-           ======================================================================= */
-        const raycaster = new THREE.Raycaster();
-        const mouse = new THREE.Vector2();
-
-        function setupPointerEvents() {
-            window.addEventListener('pointerdown', (e) => {
-                if (e.target.closest('#main-menu') || e.target.closest('#hud-layer') || e.target.closest('#vr-btn-container')) return;
-                isEmitting = true;
-                updateHandPointer(e);
-            });
-
-            window.addEventListener('pointermove', (e) => {
-                updateHandPointer(e);
-            });
-
-            window.addEventListener('pointerup', () => { isEmitting = false; });
-            window.addEventListener('pointercancel', () => { isEmitting = false; });
-        }
-
-        function updateHandPointer(e) {
-            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-            const targetPos = new THREE.Vector3();
-            raycaster.ray.at(2.0, targetPos);
-
-            // Move pitch black right hand to ray target position
-            rightHandMesh.position.lerp(targetPos, 0.2);
-            leftHandMesh.position.set(targetPos.x - 0.4, targetPos.y - 0.1, targetPos.z);
-        }
-
-        /* =======================================================================
-           PALM MENU & UI INTERACTIONS
-           ======================================================================= */
-        document.querySelectorAll('.mat-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const target = e.currentTarget;
-                document.querySelectorAll('.mat-btn').forEach(b => b.classList.remove('selected'));
-                target.classList.add('selected');
-                activeMaterial = target.dataset.mat;
-                triggerHaptic(20);
-            });
-        });
-
-        document.getElementById('btn-toggle-palm').addEventListener('click', () => {
-            isPalmOpen = !isPalmOpen;
-            const palmOverlay = document.getElementById('palm-gui-overlay');
-            if (isPalmOpen) {
-                palmOverlay.classList.add('active-palm');
-            } else {
-                palmOverlay.classList.remove('active-palm');
-            }
-            triggerHaptic(15);
-        });
-
-        /* =======================================================================
-           MAIN MENU ACTIONS (Play & Copy Code)
-           ======================================================================= */
-        document.getElementById('btn-play').addEventListener('click', () => {
-            // Unlock audio
-             try {
-                 const bgmEl = document.getElementById('bgm');
-                 if (bgmEl) {
-                     initBGM(bgmEl);
-                 }
-             } catch (e) {
-                 console.warn("initBGM failed", e);
-             }
-            initAudioEngine();
-            if (audioCtx && audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-            triggerHaptic(50);
-
-             const vrBtn = document.getElementById('VRButton');
-             if (vrBtn && vrBtn.onclick) {
-                 vrBtn.click();
-             } else {
-                 const mainMenu = document.getElementById('main-menu');
-                 mainMenu.classList.add('hidden-menu');
-                 document.getElementById('hud-layer').classList.add('visible-hud');
-             }
-        });
-
-        document.getElementById('btn-copy-code').addEventListener('click', async () => {
-            triggerHaptic(30);
-            const code = document.documentElement.outerHTML;
-            try {
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    await navigator.clipboard.writeText(code);
-                } else {
-                    const textarea = document.createElement('textarea');
-                    textarea.value = code;
-                    document.body.appendChild(textarea);
-                    textarea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textarea);
-                }
-                showToast("Game code copied to clipboard!");
-            } catch (err) {
-                showToast("Copied code to clipboard!");
-            }
-        });
-
-        function showToast(msg) {
-            const toast = document.getElementById('toast');
-            toast.textContent = msg;
-            toast.classList.add('show');
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 3000);
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        /* =======================================================================
-           MAIN RENDER & PHYSICS LOOP
-           ======================================================================= */
-        const clock = new THREE.Clock();
-
-        function renderLoop() {
-            const dt = Math.min(clock.getDelta(), 0.1);
-
-            if (!renderer.xr.isPresenting && controls) {
-                controls.update();
-            }
-
-            // Update hand velocities & grab state
-            updateHandVelocities(dt);
-            checkGrabbing();
-            
-            if (renderer.xr.isPresenting) {
-                leftHandMesh.visible = false;
-                rightHandMesh.visible = false;
-               
-                updateHandMaterials(hand0);
-                updateHandMaterials(hand1);
-               
-                updateHandBones(hand0);
-                updateHandBones(hand1);
-               
-                let leftHand = null;
-                let rightHand = null;
-                if (hand0.handedness === 'left') leftHand = hand0;
-                if (hand0.handedness === 'right') rightHand = hand0;
-                if (hand1.handedness === 'left') leftHand = hand1;
-                if (hand1.handedness === 'right') rightHand = hand1;
-               
-                if (leftHand && leftHand.visible) {
-                    updatePalmMenu(leftHand, camera);
-                    
-                    if (!palmMenu.visible && isPinching(leftHand)) {
-                        const pinchPos = getPinchPoint(leftHand);
-                        if (pinchPos) {
-                            const wrist = leftHand.joints['wrist'];
-                            const indexTip = leftHand.joints['index-finger-tip'];
-                            let dir = new THREE.Vector3(0, 0, -1);
-                            if (wrist && indexTip) {
-                                const pWrist = new THREE.Vector3();
-                                const pTip = new THREE.Vector3();
-                                wrist.getWorldPosition(pWrist);
-                                indexTip.getWorldPosition(pTip);
-                                dir.subVectors(pTip, pWrist).normalize();
-                            }
-                            spawnParticle(pinchPos, dir, activeMaterial);
-                        }
-                    }
-                } else {
-                    palmMenu.visible = false;
-                }
-               
-                if (rightHand && rightHand.visible) {
-                    checkPalmMenuInteraction(rightHand);
-                   
-                    let isInteractingWithMenu = false;
-                    if (palmMenu.visible) {
-                        const indexTip = rightHand.joints['index-finger-tip'];
-                        if (indexTip) {
-                            const indexTipPos = new THREE.Vector3();
-                            indexTip.getWorldPosition(indexTipPos);
-                            for (let i = 0; i < palmButtons.length; i++) {
-                                const btnWorldPos = new THREE.Vector3();
-                                palmButtons[i].getWorldPosition(btnWorldPos);
-                                if (indexTipPos.distanceTo(btnWorldPos) < 0.06) {
-                                    isInteractingWithMenu = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    if (!isInteractingWithMenu && isPinching(rightHand)) {
-                        const pinchPos = getPinchPoint(rightHand);
-                        if (pinchPos) {
-                            const wrist = rightHand.joints['wrist'];
-                            const indexTip = rightHand.joints['index-finger-tip'];
-                            let dir = new THREE.Vector3(0, 0, -1);
-                            if (wrist && indexTip) {
-                                const pWrist = new THREE.Vector3();
-                                const pTip = new THREE.Vector3();
-                                wrist.getWorldPosition(pWrist);
-                                indexTip.getWorldPosition(pTip);
-                                dir.subVectors(pTip, pWrist).normalize();
-                            }
-                            spawnParticle(pinchPos, dir, activeMaterial);
-                        }
-                    }
-                }
-            } else {
-                leftHandMesh.visible = true;
-                rightHandMesh.visible = true;
-                palmMenu.visible = false;
-               
-                if (isEmitting) {
-                    const emitterPos = rightHandMesh.position.clone().add(new THREE.Vector3(0, 0.02, -0.05));
-                    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(rightHandMesh.quaternion);
-                    spawnParticle(emitterPos, dir, activeMaterial);
-                }
-            }
-
-            // Update physics props
-            for (let i = 0; i < physicsProps.length; i++) {
-                physicsProps[i].update(dt);
-            }
-            resolvePropCollisions();
-
-            const reactiveParticles = [];
-            for (let i = 0; i < particles.length; i++) {
-                const p = particles[i];
-                if (p.life > 0 && (p.type === 'WOOD' || p.type === 'OIL' || p.type === 'ICE' || p.type === 'WATER')) {
-                    reactiveParticles.push(p);
-                }
-            }
-
-            for (let i = particles.length - 1; i >= 0; i--) {
-                particles[i].update(dt, reactiveParticles);
-                if (particles[i].life <= 0) {
-                    particles[i].destroy();
-                    particles.splice(i, 1);
-                }
-            }
-
-            updateDynamicLights();
-            updateHandLights();
-            updateHandGlow();
-            checkCollisions();
-
-            renderer.render(scene, camera);
-        }
-
-        /* =======================================================================
-           BOOTSTRAP
-           ======================================================================= */
-        function init() {
-            applyAllEditableValues();
-            initScene();
-            lucide.createIcons();
-        }
-
-        document.addEventListener('DOMContentLoaded', init);
-    </script>
-
-
-</body></html>
+    <div class="title">ACCESS // TERMINAL</div>
+    <div class="status">LOCAL SESSION</div>
+  </div>
+
+  <div class="screen" id="screen">
+    <div class="output" id="output"></div>
+
+    <div class="inputline">
+      <span class="prompt">guest@access:~$&nbsp;</span>
+      <input id="input" autocomplete="off" spellcheck="false" autofocus>
+      <span class="cursor"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+const output = document.getElementById("output");
+const input = document.getElementById("input");
+const screen = document.getElementById("screen");
+const terminal = document.getElementById("terminal");
+
+const STORAGE_KEY = "access_terminal_users";
+
+let currentUser = null;
+
+const commands = {
+  help: () => `
+AVAILABLE COMMANDS
+
+SYSTEM
+  help          show this command list
+  about         about this terminal
+  clear         clear the screen
+  cls           clear the screen
+  date          show local date
+  time          show local time
+  uptime        show session uptime
+  whoami        show current user
+  hostname      show browser hostname
+  version       show terminal version
+  status        show system status
+  info          show browser information
+  platform      show operating platform
+  language      show browser language
+  timezone      show timezone
+  screen        show screen information
+  online        show connection status
+  ping          simulate a ping
+  echo          print text
+  say           print text
+  banner        show terminal banner
+
+VISUAL
+  matrix        start a digital rain effect
+  glow          toggle terminal glow
+  scan          run a fake security scan
+  decrypt       simulate decryption
+  trace         simulate route tracing
+  scanlines     toggle scanlines
+  glitch        trigger a screen glitch
+  color         change terminal color
+  neon          enable neon mode
+  pulse         pulse the terminal
+  hack          run a harmless fake hacking sequence
+  breach        run a fictional breach animation
+
+UTILITY
+  random        generate a random number
+  dice          roll a six-sided die
+  coin          flip a coin
+  calc          calculate a basic expression
+  ascii         show ASCII art
+  repeat        repeat text
+  count         count to a number
+  reverse       reverse text
+  upper         uppercase text
+  lower         lowercase text
+  length        count characters
+  timecode      show Unix timestamp
+
+ACCOUNT
+  signup [user] [password]
+  login [user] [password]
+  logout        log out
+  users         show locally registered usernames
+
+OTHER
+  history       show command history
+  ls            list virtual files
+  dir           list virtual files
+  readme        display readme
+  exit          end the session
+`,
+
+  about: () =>
+    `ACCESS TERMINAL\n\nA fictional browser-based terminal created for entertainment.\nNo real hacking functions are included.`,
+
+  version: () =>
+    `ACCESS TERMINAL v4.2.7\nBuild: LOCAL-ENTERTAINMENT`,
+
+  clear: clear,
+  cls: clear,
+
+  date: () => new Date().toLocaleDateString(),
+  time: () => new Date().toLocaleTimeString(),
+
+  uptime: () => {
+    const seconds = Math.floor((Date.now() - sessionStart) / 1000);
+    return `SESSION UPTIME: ${seconds}s`;
+  },
+
+  whoami: () =>
+    currentUser ? `CURRENT USER: ${currentUser}` : "CURRENT USER: guest",
+
+  hostname: () =>
+    `HOST: ${location.hostname || "localhost"}`,
+
+  status: () =>
+    `SYSTEM STATUS\n\nTerminal: ONLINE\nSession: ACTIVE\nNetwork: ${navigator.onLine ? "ONLINE" : "OFFLINE"}\nAuthentication: LOCAL\nExternal access: DISABLED`,
+
+  info: () =>
+    `BROWSER INFORMATION\n\nBrowser: ${navigator.userAgent}\nLanguage: ${navigator.language}\nCores: ${navigator.hardwareConcurrency || "unknown"}\nPlatform: ${navigator.platform}`,
+
+  platform: () => navigator.platform,
+  language: () => navigator.language,
+  timezone: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+
+  screen: () =>
+    `SCREEN\n\nResolution: ${screen.width} x ${screen.height}\nAvailable: ${screen.availWidth} x ${screen.availHeight}\nPixel ratio: ${devicePixelRatio}`,
+
+  online: () =>
+    navigator.onLine ? "NETWORK STATUS: ONLINE" : "NETWORK STATUS: OFFLINE",
+
+  ping: async () => {
+    await sleep(400);
+    return "PING ACCESS-NODE\nREPLY: 12ms\nREPLY: 14ms\nREPLY: 11ms\nSTATUS: STABLE";
+  },
+
+  echo: args => args.join(" "),
+  say: args => args.join(" "),
+
+  banner: () =>
+`    █████╗  ██████╗ ██████╗███████╗███████╗███████╗
+   ██╔══██╗██╔════╝██╔════╝██╔════╝██╔════╝██╔════╝
+   ███████║██║     ██║     █████╗  ███████╗███████╗
+   ██╔══██║██║     ██║     ██╔══╝  ╚════██║╚════██║
+   ██║  ██║╚██████╗╚██████╗███████╗███████║███████║
+   ╚═╝  ╚═╝ ╚═════╝ ╚═════╝╚══════╝╚══════╝╚══════╝`,
+
+  matrix: () => {
+    matrixEffect();
+    return "DIGITAL RAIN INITIALIZED...";
+  },
+
+  glow: () => {
+    document.querySelector(".terminal").classList.toggle("glowOff");
+    return "GLOW TOGGLED.";
+  },
+
+  scan: async () => {
+    const steps = [
+      "Initializing scan...",
+      "Checking local environment...",
+      "Inspecting browser context...",
+      "Checking session state...",
+      "Analyzing available interfaces...",
+      "No malicious activity detected.",
+      "SCAN COMPLETE."
+    ];
+    for (const s of steps) {
+      print(s, "dim");
+      await sleep(250);
+    }
+    return "";
+  },
+
+  decrypt: async () => {
+    for(let i=0;i<=100;i+=10){
+      print(`DECRYPTING... ${i}%`, "yellow");
+      await sleep(90);
+    }
+    return "DECRYPTION COMPLETE.";
+  },
+
+  trace: async () => {
+    print("TRACE ROUTE", "cyan");
+    await sleep(250);
+    print("01  LOCALHOST", "white");
+    await sleep(200);
+    print("02  ACCESS-NODE", "white");
+    await sleep(200);
+    return "ROUTE COMPLETE.";
+  },
+
+  scanlines: () => {
+    document.body.classList.toggle("noScanlines");
+    return "SCANLINES TOGGLED.";
+  },
+
+  glitch: () => {
+    terminal.classList.remove("glitch");
+    void terminal.offsetWidth;
+    terminal.classList.add("glitch");
+    return "SIGNAL DISTORTION.";
+  },
+
+  color: args => {
+    const colors = {
+      green:"#00ff66",
+      cyan:"#00ffd5",
+      yellow:"#dfff00",
+      red:"#ff3030",
+      white:"#eafff0"
+    };
+    const c = colors[(args[0] || "").toLowerCase()];
+    if(!c) return "AVAILABLE: green, cyan, yellow, red, white";
+    document.documentElement.style.setProperty("--green", c);
+    return `TERMINAL COLOR: ${args[0].toUpperCase()}`;
+  },
+
+  neon: () => {
+    document.documentElement.style.setProperty("--green","#00ff66");
+    return "NEON MODE ENABLED.";
+  },
+
+  pulse: async () => {
+    terminal.style.transition="box-shadow .25s";
+    terminal.style.boxShadow="0 0 80px rgba(0,255,102,.7), inset 0 0 60px rgba(0,255,102,.12)";
+    await sleep(400);
+    terminal.style.boxShadow="";
+    return "PULSE COMPLETE.";
+  },
+
+  hack: async () => {
+    const fake = [
+      "INITIALIZING REMOTE INTERFACE...",
+      "LOCATING TARGET...",
+      "TARGET FOUND: LOCAL SESSION",
+      "BYPASSING SECURITY...",
+      "ACCESSING MEMORY...",
+      "DOWNLOADING...",
+      "████████████████████ 100%",
+      "CONNECTION ESTABLISHED.",
+      "",
+      "JUST KIDDING.",
+      "NO SYSTEM WAS ACCESSED."
+    ];
+    for(const x of fake){
+      print(x, x.includes("KIDDING") ? "yellow" : "green");
+      await sleep(220);
+    }
+    return "";
+  },
+
+  breach: async () => {
+    print("WARNING: UNAUTHORIZED ACCESS SIMULATION", "red");
+    await sleep(500);
+    print("Analyzing fictional perimeter...", "yellow");
+    await sleep(500);
+    print("Simulation complete.", "green");
+    return "NO REAL SYSTEM ACCESS OCCURRED.";
+  },
+
+  random: () => Math.floor(Math.random()*1000000).toString(),
+
+  dice: () => `DICE RESULT: ${Math.floor(Math.random()*6)+1}`,
+
+  coin: () => Math.random() < .5 ? "COIN: HEADS" : "COIN: TAILS",
+
+  calc: args => {
+    const expression = args.join(" ");
+    if(!/^[0-9+\-*/().%\s]+$/.test(expression))
+      return "Only basic arithmetic is supported.";
+    try {
+      return `RESULT: ${Function('"use strict";return ('+expression+')')()}`;
+    } catch {
+      return "CALCULATION ERROR.";
+    }
+  },
+
+  ascii: () =>
+`       /\\_/\\\\
+      ( o.o )
+       > ^ <
+     ACCESS NODE`,
+
+  repeat: args => {
+    const n = Math.min(parseInt(args[0]) || 1,20);
+    return Array(n).fill(args.slice(1).join(" ")).join("\n");
+  },
+
+  count: async args => {
+    const n = Math.min(Math.max(parseInt(args[0]) || 10,1),50);
+    for(let i=1;i<=n;i++){
+      print(String(i),"green");
+      await sleep(35);
+    }
+    return "";
+  },
+
+  reverse: args => args.join(" ").split("").reverse().join(""),
+  upper: args => args.join(" ").toUpperCase(),
+  lower: args => args.join(" ").toLowerCase(),
+  length: args => `LENGTH: ${args.join(" ").length}`,
+  timecode: () => Math.floor(Date.now()/1000).toString(),
+
+  logout: () => {
+    currentUser = null;
+    return "LOGGED OUT.";
+  },
+
+  users: () => {
+    const users = getUsers();
+    const names = Object.keys(users);
+    return names.length ? "LOCAL USERS:\n\n" + names.join("\n") :
+      "NO LOCAL USERS REGISTERED.";
+  },
+
+  history: () => history.length ? history.join("\n") : "NO HISTORY.",
+
+  ls: () =>
+`VIRTUAL FILES
+
+ACCESS/
+  README.txt
+  system.log
+  users.db
+  terminal.cfg
+  protocols.dat
+  session.tmp`,
+
+  dir: () => commands.ls(),
+
+  readme: () =>
+`ACCESS TERMINAL
+
+This is a fictional terminal interface.
+Commands are simulated locally.
+
+Signup and Login are entertainment features.
+They are NOT secure authentication.`,
+
+  exit: () => "SESSION TERMINATED."
+};
+
+const sessionStart = Date.now();
+const history = [];
+let historyIndex = 0;
+
+function sleep(ms){
+  return new Promise(resolve => setTimeout(resolve,ms));
+}
+
+function print(text="", cls=""){
+  const div=document.createElement("div");
+  div.className="line "+cls;
+  div.textContent=text;
+  output.appendChild(div);
+  screen.scrollTop=screen.scrollHeight;
+}
+
+function clear(){
+  output.innerHTML="";
+  return "";
+}
+
+function getUsers(){
+  try{
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+  }catch{
+    return {};
+  }
+}
+
+function saveUsers(users){
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(users));
+}
+
+async function signup(args){
+  if(args.length < 2)
+    return "USAGE: Signup [user] [password]";
+
+  const user=args[0];
+  const password=args.slice(1).join(" ");
+  const users=getUsers();
+
+  if(users[user])
+    return "ERROR: USER ALREADY EXISTS.";
+
+  users[user]=password;
+  saveUsers(users);
+
+  return `ACCOUNT CREATED FOR ${user}\nStored locally in this browser.`;
+}
+
+async function login(args){
+  if(args.length < 2)
+    return "USAGE: Login [user] [password]";
+
+  const user=args[0];
+  const password=args.slice(1).join(" ");
+  const users=getUsers();
+
+  if(!users[user])
+    return "ERROR: USER NOT FOUND.";
+
+  if(users[user] !== password)
+    return "ERROR: INVALID PASSWORD.";
+
+  currentUser=user;
+  return `LOGIN SUCCESSFUL.\nWELCOME, ${user}.`;
+}
+
+async function runCommand(raw){
+  const trimmed=raw.trim();
+  if(!trimmed)return;
+
+  history.push(trimmed);
+  historyIndex=history.length;
+
+  print("guest@access:~$ "+trimmed,"white");
+
+  const parts=trimmed.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+  const command=(parts.shift() || "").toLowerCase();
+  const args=parts.map(x=>x.replace(/^"|"$/g,""));
+
+  if(command === "signup"){
+    const result=await signup(args);
+    print(result);
+    return;
+  }
+
+  if(command === "login"){
+    const result=await login(args);
+    print(result);
+    return;
+  }
+
+  if(!commands[command]){
+    print(`COMMAND NOT FOUND: ${command}`,"red");
+    print("Type HELP for available commands.","dim");
+    return;
+  }
+
+  try{
+    const result=await commands[command](args);
+    if(result) print(result);
+  }catch(e){
+    print("COMMAND ERROR.","red");
+  }
+}
+
+function matrixEffect(){
+  const canvas=document.createElement("canvas");
+  canvas.style.position="fixed";
+  canvas.style.inset="0";
+  canvas.style.zIndex="30";
+  canvas.style.pointerEvents="none";
+  canvas.style.opacity=".28";
+  document.body.appendChild(canvas);
+
+  const ctx=canvas.getContext("2d");
+
+  function resize(){
+    canvas.width=innerWidth;
+    canvas.height=innerHeight;
+  }
+
+  resize();
+  addEventListener("resize",resize);
+
+  const chars="01ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const size=15;
+  let columns=Math.floor(canvas.width/size);
+  let drops=Array(columns).fill(1);
+
+  let frame=0;
+
+  function draw(){
+    ctx.fillStyle="rgba(0,0,0,.08)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    ctx.fillStyle="#00ff66";
+    ctx.font=size+"px monospace";
+
+    for(let i=0;i<drops.length;i++){
+      const char=chars[Math.floor(Math.random()*chars.length)];
+      ctx.fillText(char,i*size,drops[i]*size);
+
+      if(drops[i]*size>canvas.height && Math.random()>.975)
+        drops[i]=0;
+
+      drops[i]++;
+    }
+
+    frame++;
+
+    if(frame<300)
+      requestAnimationFrame(draw);
+    else
+      canvas.remove();
+  }
+
+  draw();
+}
+
+input.addEventListener("keydown",async e=>{
+  if(e.key==="Enter"){
+    const value=input.value;
+    input.value="";
+    await runCommand(value);
+    screen.scrollTop=screen.scrollHeight;
+  }
+
+  if(e.key==="ArrowUp"){
+    e.preventDefault();
+    if(history.length){
+      historyIndex=Math.max(0,historyIndex-1);
+      input.value=history[historyIndex] || "";
+    }
+  }
+
+  if(e.key==="ArrowDown"){
+    e.preventDefault();
+    if(history.length){
+      historyIndex=Math.min(history.length,historyIndex+1);
+      input.value=history[historyIndex] || "";
+    }
+  }
+
+  if(e.key==="Tab"){
+    e.preventDefault();
+    const val=input.value.toLowerCase();
+    const matches=Object.keys(commands).filter(x=>x.startsWith(val));
+    if(matches.length===1) input.value=matches[0];
+  }
+});
+
+document.addEventListener("click",()=>input.focus());
+
+async function boot(){
+  await sleep(250);
+  print("ACCESS TERMINAL v4.2.7","cyan");
+  await sleep(150);
+  print("Initializing local session...","dim");
+  await sleep(250);
+  print("Interface loaded.","green");
+  await sleep(150);
+  print("");
+  print("Type HELP to list available commands.","white");
+  print("");
+}
+
+boot();
+</script>
+
+</body>
+</html>
+```
