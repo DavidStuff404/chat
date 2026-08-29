@@ -3,132 +3,156 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Access</title>
 
 <style>
-*{
-  box-sizing:border-box;
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    background: #000;
 }
 
-html,body{
-  margin:0;
-  width:100%;
-  height:100%;
-  overflow:hidden;
-  background:#000;
-  color:#00ff55;
-  font-family:"Courier New",monospace;
+body {
+    overflow: hidden;
+    color: #00ff55;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 15px;
 }
 
-body{
-  text-shadow:
-    0 0 4px #00ff55,
-    0 0 10px rgba(0,255,85,.45);
+#screen {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    padding: 22px 26px;
+    box-sizing: border-box;
+    background: #000;
 }
 
-#screen{
-  width:100%;
-  height:100%;
-  padding:22px 26px;
-  overflow-y:auto;
-  background:#000;
+#output {
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
-#output{
-  white-space:pre-wrap;
-  word-break:break-word;
-  font-size:15px;
-  line-height:1.55;
+.line {
+    min-height: 23px;
+    line-height: 1.55;
+    text-shadow: 0 0 5px rgba(0, 255, 85, 0.45);
 }
 
-.line{
-  min-height:23px;
+.green {
+    color: #00ff55;
 }
 
-.green{
-  color:#00ff55;
+.cyan {
+    color: #00ffd5;
 }
 
-.cyan{
-  color:#00ffd5;
+.yellow {
+    color: #dfff00;
 }
 
-.yellow{
-  color:#dfff00;
+.red {
+    color: #ff3030;
 }
 
-.red{
-  color:#ff3030;
+.white {
+    color: #d9ffe5;
 }
 
-.white{
-  color:#d9ffe5;
+.dim {
+    color: #087a39;
 }
 
-.dim{
-  color:#087a39;
+.input-line {
+    display: flex;
+    width: 100%;
+    min-height: 23px;
+    line-height: 1.55;
 }
 
-.inputline{
-  display:flex;
-  width:100%;
-  font-size:15px;
-  line-height:1.55;
+.prompt {
+    color: #00ff55;
+    white-space: nowrap;
+    text-shadow: 0 0 5px rgba(0, 255, 85, 0.45);
 }
 
-.prompt{
-  white-space:nowrap;
-  color:#00ff55;
+#input {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #00ff55;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    caret-color: #00ff55;
+    text-shadow: 0 0 5px rgba(0, 255, 85, 0.45);
 }
 
-#input{
-  flex:1;
-  min-width:0;
-  border:0;
-  outline:0;
-  padding:0;
-  margin:0;
-  background:transparent;
-  color:#00ff55;
-  font:inherit;
-  text-shadow:
-    0 0 4px #00ff55,
-    0 0 10px rgba(0,255,85,.45);
-  caret-color:#00ff55;
+.cursor {
+    display: inline-block;
+    width: 9px;
+    height: 18px;
+    margin-left: 2px;
+    vertical-align: -3px;
+    background: #00ff55;
+    box-shadow: 0 0 8px rgba(0, 255, 85, 0.8);
+    animation: blink 0.7s steps(1) infinite;
 }
 
-::selection{
-  background:#00ff55;
-  color:#000;
+@keyframes blink {
+    50% {
+        opacity: 0;
+    }
 }
 
-::-webkit-scrollbar{
-  width:7px;
+::selection {
+    background: #00ff55;
+    color: #000;
 }
 
-::-webkit-scrollbar-track{
-  background:#000;
+::-webkit-scrollbar {
+    width: 7px;
 }
 
-::-webkit-scrollbar-thumb{
-  background:#063d1d;
+::-webkit-scrollbar-track {
+    background: #000;
 }
 
-.cursor{
-  display:inline-block;
-  width:9px;
-  height:19px;
-  background:#00ff55;
-  box-shadow:0 0 10px #00ff55;
-  animation:blink .7s steps(1) infinite;
-  vertical-align:-3px;
+::-webkit-scrollbar-thumb {
+    background: #064d24;
 }
 
-@keyframes blink{
-  50%{
-    opacity:0;
-  }
+body.glitch {
+    animation: glitch 100ms linear;
+}
+
+@keyframes glitch {
+    0% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-3px);
+    }
+
+    50% {
+        transform: translateX(3px);
+    }
+
+    75% {
+        transform: translateX(-2px);
+    }
+
+    100% {
+        transform: translateX(0);
+    }
 }
 </style>
 </head>
@@ -136,13 +160,19 @@ body{
 <body>
 
 <div id="screen">
-  <div id="output"></div>
+    <div id="output"></div>
 
-  <div class="inputline">
-    <span class="prompt">guest@access:~$&nbsp;</span>
-    <input id="input" autocomplete="off" spellcheck="false" autofocus>
-    <span class="cursor"></span>
-  </div>
+    <div class="input-line">
+        <span class="prompt">guest@access:~$&nbsp;</span>
+        <input
+            id="input"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            autofocus
+        >
+        <span class="cursor"></span>
+    </div>
 </div>
 
 <script>
@@ -156,130 +186,141 @@ const STORAGE_KEY = "access_terminal_users";
 
 let currentUser = null;
 let sessionStart = Date.now();
-let history = [];
+let commandHistory = [];
 let historyIndex = 0;
 
-function sleep(ms){
-  return new Promise(resolve => setTimeout(resolve,ms));
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function print(text="",cls=""){
-  const line=document.createElement("div");
-  line.className="line "+cls;
-  line.textContent=text;
-  output.appendChild(line);
-  screen.scrollTop=screen.scrollHeight;
+function print(text = "", className = "") {
+    const element = document.createElement("div");
+
+    element.className = "line " + className;
+    element.textContent = text;
+
+    output.appendChild(element);
+    screen.scrollTop = screen.scrollHeight;
 }
 
-function clear(){
-  output.innerHTML="";
-  return "";
+function clearScreen() {
+    output.innerHTML = "";
+    return "";
 }
 
-function getUsers(){
-  try{
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-  }catch{
-    return {};
-  }
+function getUsers() {
+    try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    } catch {
+        return {};
+    }
 }
 
-function saveUsers(users){
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(users));
+function saveUsers(users) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
 }
 
-async function signup(args){
-  if(args.length<2)
-    return "USAGE: Signup [user] [password]";
+async function signup(args) {
 
-  const user=args[0];
-  const password=args.slice(1).join(" ");
-  const users=getUsers();
+    if (args.length < 2) {
+        return "USAGE: Signup [user] [password]";
+    }
 
-  if(users[user])
-    return "ERROR: USER ALREADY EXISTS.";
+    const username = args[0];
+    const password = args.slice(1).join(" ");
 
-  users[user]=password;
-  saveUsers(users);
+    const users = getUsers();
 
-  return "ACCOUNT CREATED: "+user;
+    if (users[username]) {
+        return "ERROR: USER ALREADY EXISTS.";
+    }
+
+    users[username] = password;
+    saveUsers(users);
+
+    return "ACCOUNT CREATED: " + username;
 }
 
-async function login(args){
-  if(args.length<2)
-    return "USAGE: Login [user] [password]";
+async function login(args) {
 
-  const user=args[0];
-  const password=args.slice(1).join(" ");
-  const users=getUsers();
+    if (args.length < 2) {
+        return "USAGE: Login [user] [password]";
+    }
 
-  if(!users[user])
-    return "ERROR: USER NOT FOUND.";
+    const username = args[0];
+    const password = args.slice(1).join(" ");
 
-  if(users[user]!==password)
-    return "ERROR: INVALID PASSWORD.";
+    const users = getUsers();
 
-  currentUser=user;
+    if (!users[username]) {
+        return "ERROR: USER NOT FOUND.";
+    }
 
-  return "LOGIN SUCCESSFUL.\nWELCOME, "+user+".";
+    if (users[username] !== password) {
+        return "ERROR: INVALID PASSWORD.";
+    }
+
+    currentUser = username;
+
+    return "LOGIN SUCCESSFUL.\nWELCOME, " + username + ".";
 }
 
-const commands={
+const commands = {
 
-help:()=>`
+    help: () => `
 AVAILABLE COMMANDS
 
 SYSTEM
-  help       show commands
-  clear      clear console
-  cls        clear console
-  about      about this terminal
-  version    terminal version
-  status     system status
-  info       browser information
-  platform   browser platform
-  language   browser language
-  timezone   local timezone
-  screen     screen information
-  online     connection status
-  hostname   current website host
-  date       local date
-  time       local time
-  uptime     session uptime
-  whoami     current user
+  help
+  clear
+  cls
+  about
+  version
+  status
+  info
+  platform
+  language
+  timezone
+  screen
+  online
+  hostname
+  date
+  time
+  uptime
+  whoami
 
 VISUAL
-  matrix     digital rain
-  glitch     screen glitch
-  pulse      terminal pulse
-  neon       enable neon mode
-  color      change terminal color
-  scan       simulated scan
-  decrypt    simulated decryption
-  trace      simulated trace
-  hack       fictional hacking sequence
-  breach     fictional breach sequence
+  matrix
+  glitch
+  pulse
+  neon
+  color
+  scan
+  decrypt
+  trace
+  hack
+  breach
 
 UTILITY
-  echo       print text
-  say        print text
-  banner     ASCII banner
-  random     random number
-  dice       roll a die
-  coin       flip a coin
-  calc       calculator
-  ascii       ASCII art
-  repeat     repeat text
-  count      count numbers
-  reverse    reverse text
-  upper      uppercase text
-  lower      lowercase text
-  length     character count
-  timecode   Unix timestamp
-  history    command history
-  ls         virtual files
-  dir        virtual files
-  readme     project information
+  echo
+  say
+  banner
+  random
+  dice
+  coin
+  calc
+  ascii
+  repeat
+  count
+  reverse
+  upper
+  lower
+  length
+  timecode
+  history
+  ls
+  dir
+  readme
 
 ACCOUNT
   signup [user] [password]
@@ -288,53 +329,80 @@ ACCOUNT
   users
 `,
 
-about:()=>
-"ACCESS TERMINAL\n\nA fictional browser terminal created for entertainment.",
+    about: () =>
+        "ACCESS TERMINAL\n\n" +
+        "A fictional browser-based terminal created for entertainment.\n" +
+        "No real hacking functionality is included.",
 
-version:()=>"ACCESS TERMINAL v4.2.7",
+    version: () =>
+        "ACCESS TERMINAL v4.2.7\nBUILD: LOCAL",
 
-status:()=>
-"SYSTEM STATUS\n\nTERMINAL      ONLINE\nSESSION       ACTIVE\nNETWORK       "+(navigator.onLine?"ONLINE":"OFFLINE")+"\nAUTH          LOCAL\nREMOTE ACCESS DISABLED",
+    status: () =>
+        "SYSTEM STATUS\n\n" +
+        "TERMINAL      ONLINE\n" +
+        "SESSION       ACTIVE\n" +
+        "NETWORK       " + (navigator.onLine ? "ONLINE" : "OFFLINE") + "\n" +
+        "AUTH          LOCAL\n" +
+        "REMOTE ACCESS DISABLED",
 
-info:()=>
-"BROWSER\n\n"+navigator.userAgent+
-"\nLANGUAGE     "+navigator.language+
-"\nCPU CORES    "+(navigator.hardwareConcurrency||"UNKNOWN")+
-"\nPLATFORM     "+navigator.platform,
+    info: () =>
+        "BROWSER INFORMATION\n\n" +
+        "USER AGENT    " + navigator.userAgent + "\n" +
+        "LANGUAGE      " + navigator.language + "\n" +
+        "CPU CORES     " +
+        (navigator.hardwareConcurrency || "UNKNOWN") + "\n" +
+        "PLATFORM      " + navigator.platform,
 
-platform:()=>navigator.platform,
+    platform: () =>
+        navigator.platform,
 
-language:()=>navigator.language,
+    language: () =>
+        navigator.language,
 
-timezone:()=>Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timezone: () =>
+        Intl.DateTimeFormat().resolvedOptions().timeZone,
 
-screen:()=>
-"SCREEN\n\nRESOLUTION   "+screen.width+" x "+screen.height+
-"\nAVAILABLE    "+screen.availWidth+" x "+screen.availHeight+
-"\nPIXEL RATIO  "+devicePixelRatio,
+    screen: () =>
+        "SCREEN INFORMATION\n\n" +
+        "RESOLUTION    " + screen.width + " x " + screen.height + "\n" +
+        "AVAILABLE     " + screen.availWidth + " x " + screen.availHeight + "\n" +
+        "PIXEL RATIO   " + devicePixelRatio,
 
-online:()=>navigator.onLine?"NETWORK ONLINE":"NETWORK OFFLINE",
+    online: () =>
+        navigator.onLine
+            ? "NETWORK STATUS: ONLINE"
+            : "NETWORK STATUS: OFFLINE",
 
-hostname:()=>location.hostname||"localhost",
+    hostname: () =>
+        "HOST: " + (location.hostname || "localhost"),
 
-date:()=>new Date().toLocaleDateString(),
+    date: () =>
+        new Date().toLocaleDateString(),
 
-time:()=>new Date().toLocaleTimeString(),
+    time: () =>
+        new Date().toLocaleTimeString(),
 
-uptime:()=>{
-  const s=Math.floor((Date.now()-sessionStart)/1000);
-  return "SESSION UPTIME: "+s+"s";
-},
+    uptime: () => {
+        const seconds =
+            Math.floor((Date.now() - sessionStart) / 1000);
 
-whoami:()=>currentUser||"guest",
+        return "SESSION UPTIME: " + seconds + "s";
+    },
 
-clear:clear,
-cls:clear,
+    whoami: () =>
+        currentUser || "guest",
 
-echo:args=>args.join(" "),
-say:args=>args.join(" "),
+    clear: clearScreen,
 
-banner:()=>`
+    cls: clearScreen,
+
+    echo: args =>
+        args.join(" "),
+
+    say: args =>
+        args.join(" "),
+
+    banner: () => `
      █████╗  ██████╗ ██████╗███████╗███████╗███████╗
     ██╔══██╗██╔════╝██╔════╝██╔════╝██╔════╝██╔════╝
     ███████║██║     ██║     █████╗  ███████╗███████╗
@@ -342,173 +410,272 @@ banner:()=>`
     ██║  ██║╚██████╗╚██████╗███████╗███████║███████║
     ╚═╝  ╚═╝ ╚═════╝ ╚═════╝╚══════╝╚══════╝╚══════╝`,
 
-matrix:()=>{
-  matrix();
-  return "DIGITAL RAIN INITIALIZED.";
-},
+    matrix: () => {
 
-glitch:()=>{
-  document.body.style.transform="translateX(3px)";
-  setTimeout(()=>document.body.style.transform="",80);
-  return "SIGNAL DISTORTION.";
-},
+        createMatrix();
 
-pulse:async()=>{
-  document.body.style.textShadow="0 0 15px #00ff55,0 0 35px #00ff55";
-  await sleep(300);
-  document.body.style.textShadow="";
-  return "PULSE COMPLETE.";
-},
+        return "DIGITAL RAIN INITIALIZED.";
+    },
 
-neon:()=>{
-  document.documentElement.style.setProperty("--green","#00ff55");
-  return "NEON MODE ENABLED.";
-},
+    glitch: () => {
 
-color:args=>{
-  const colors={
-    green:"#00ff55",
-    cyan:"#00ffd5",
-    yellow:"#dfff00",
-    red:"#ff3030",
-    white:"#d9ffe5"
-  };
+        document.body.classList.remove("glitch");
 
-  const c=colors[(args[0]||"").toLowerCase()];
+        void document.body.offsetWidth;
 
-  if(!c)
-    return "COLORS: green, cyan, yellow, red, white";
+        document.body.classList.add("glitch");
 
-  document.body.style.color=c;
-  input.style.color=c;
+        setTimeout(() => {
+            document.body.classList.remove("glitch");
+        }, 120);
 
-  return "COLOR CHANGED.";
-},
+        return "SIGNAL DISTORTION.";
+    },
 
-scan:async()=>{
-  const lines=[
-    "INITIALIZING SCAN...",
-    "CHECKING LOCAL ENVIRONMENT...",
-    "ANALYZING SESSION...",
-    "CHECKING NETWORK INTERFACES...",
-    "CHECKING BROWSER CONTEXT...",
-    "NO MALICIOUS ACTIVITY DETECTED.",
-    "SCAN COMPLETE."
-  ];
+    pulse: async () => {
 
-  for(const x of lines){
-    print(x,"dim");
-    await sleep(180);
-  }
+        document.body.style.textShadow =
+            "0 0 10px #00ff55, 0 0 25px #00ff55";
 
-  return "";
-},
+        await sleep(300);
 
-decrypt:async()=>{
-  for(let i=0;i<=100;i+=10){
-    print("DECRYPTING... "+i+"%","yellow");
-    await sleep(70);
-  }
+        document.body.style.textShadow = "";
 
-  return "DECRYPTION COMPLETE.";
-},
+        return "PULSE COMPLETE.";
+    },
 
-trace:async()=>{
-  print("TRACE ROUTE","cyan");
-  await sleep(200);
-  print("01  LOCALHOST","white");
-  await sleep(180);
-  print("02  ACCESS-NODE","white");
-  await sleep(180);
-  print("03  TERMINAL","white");
-  return "TRACE COMPLETE.";
-},
+    neon: () => {
 
-hack:async()=>{
-  const lines=[
-    "INITIALIZING REMOTE INTERFACE...",
-    "TARGET IDENTIFIED.",
-    "AUTHENTICATION BYPASS...",
-    "ACCESSING VIRTUAL SESSION...",
-    "TRANSFERRING DATA...",
-    "████████████████████ 100%",
-    "CONNECTION ESTABLISHED.",
-    "",
-    "SIMULATION COMPLETE.",
-    "NO REAL SYSTEM WAS ACCESSED."
-  ];
+        document.documentElement.style.setProperty(
+            "--green",
+            "#00ff55"
+        );
 
-  for(const x of lines){
-    print(x,x.includes("NO REAL")?"yellow":"green");
-    await sleep(170);
-  }
+        return "NEON MODE ENABLED.";
+    },
 
-  return "";
-},
+    color: args => {
 
-breach:async()=>{
-  print("UNAUTHORIZED ACCESS SIMULATION","red");
-  await sleep(450);
-  print("ANALYZING FICTIONAL PERIMETER...","yellow");
-  await sleep(450);
-  print("SIMULATION COMPLETE.","green");
-  return "NO REAL SYSTEM ACCESS OCCURRED.";
-},
+        const colors = {
+            green: "#00ff55",
+            cyan: "#00ffd5",
+            yellow: "#dfff00",
+            red: "#ff3030",
+            white: "#d9ffe5"
+        };
 
-random:()=>String(Math.floor(Math.random()*1000000)),
+        const selected =
+            colors[(args[0] || "").toLowerCase()];
 
-dice:()=>`DICE RESULT: ${Math.floor(Math.random()*6)+1}`,
+        if (!selected) {
+            return "COLORS: green, cyan, yellow, red, white";
+        }
 
-coin:()=>Math.random()<.5?"COIN: HEADS":"COIN: TAILS",
+        document.body.style.color = selected;
+        input.style.color = selected;
 
-calc:args=>{
-  const expression=args.join(" ");
+        return "TERMINAL COLOR CHANGED.";
+    },
 
-  if(!/^[0-9+\-*/().%\s]+$/.test(expression))
-    return "ONLY BASIC ARITHMETIC IS SUPPORTED.";
+    scan: async () => {
 
-  try{
-    return "RESULT: "+Function('"use strict";return ('+expression+')')();
-  }catch{
-    return "CALCULATION ERROR.";
-  }
-},
+        const messages = [
+            "INITIALIZING SCAN...",
+            "CHECKING LOCAL ENVIRONMENT...",
+            "ANALYZING SESSION...",
+            "CHECKING NETWORK INTERFACES...",
+            "CHECKING BROWSER CONTEXT...",
+            "NO MALICIOUS ACTIVITY DETECTED.",
+            "SCAN COMPLETE."
+        ];
 
-ascii:()=>`
+        for (const message of messages) {
+
+            print(message, "dim");
+
+            await sleep(160);
+        }
+
+        return "";
+    },
+
+    decrypt: async () => {
+
+        for (let i = 0; i <= 100; i += 10) {
+
+            print(
+                "DECRYPTING... " + i + "%",
+                "yellow"
+            );
+
+            await sleep(65);
+        }
+
+        return "DECRYPTION COMPLETE.";
+    },
+
+    trace: async () => {
+
+        print("TRACE ROUTE", "cyan");
+
+        await sleep(180);
+
+        print("01  LOCALHOST", "white");
+
+        await sleep(160);
+
+        print("02  ACCESS-NODE", "white");
+
+        await sleep(160);
+
+        print("03  TERMINAL", "white");
+
+        return "TRACE COMPLETE.";
+    },
+
+    hack: async () => {
+
+        const messages = [
+            "INITIALIZING REMOTE INTERFACE...",
+            "TARGET IDENTIFIED.",
+            "AUTHENTICATION BYPASS...",
+            "ACCESSING VIRTUAL SESSION...",
+            "TRANSFERRING DATA...",
+            "████████████████████ 100%",
+            "CONNECTION ESTABLISHED.",
+            "",
+            "SIMULATION COMPLETE.",
+            "NO REAL SYSTEM WAS ACCESSED."
+        ];
+
+        for (const message of messages) {
+
+            print(
+                message,
+                message.includes("NO REAL")
+                    ? "yellow"
+                    : "green"
+            );
+
+            await sleep(150);
+        }
+
+        return "";
+    },
+
+    breach: async () => {
+
+        print(
+            "UNAUTHORIZED ACCESS SIMULATION",
+            "red"
+        );
+
+        await sleep(400);
+
+        print(
+            "ANALYZING FICTIONAL PERIMETER...",
+            "yellow"
+        );
+
+        await sleep(400);
+
+        print(
+            "SIMULATION COMPLETE.",
+            "green"
+        );
+
+        return "NO REAL SYSTEM ACCESS OCCURRED.";
+    },
+
+    random: () =>
+        String(Math.floor(Math.random() * 1000000)),
+
+    dice: () =>
+        "DICE RESULT: " +
+        (Math.floor(Math.random() * 6) + 1),
+
+    coin: () =>
+        Math.random() < 0.5
+            ? "COIN: HEADS"
+            : "COIN: TAILS",
+
+    calc: args => {
+
+        const expression = args.join(" ");
+
+        if (!/^[0-9+\-*/().%\s]+$/.test(expression)) {
+            return "ONLY BASIC ARITHMETIC IS SUPPORTED.";
+        }
+
+        try {
+
+            const result =
+                Function(
+                    '"use strict"; return (' +
+                    expression +
+                    ')'
+                )();
+
+            return "RESULT: " + result;
+
+        } catch {
+
+            return "CALCULATION ERROR.";
+        }
+    },
+
+    ascii: () => `
        /\\_/\\\\
       ( o.o )
        > ^ <
      ACCESS NODE`,
 
-repeat:args=>{
-  const n=Math.min(parseInt(args[0])||1,20);
-  return Array(n).fill(args.slice(1).join(" ")).join("\n");
-},
+    repeat: args => {
 
-count:async args=>{
-  const n=Math.min(parseInt(args[0])||10,50);
+        const amount =
+            Math.min(parseInt(args[0]) || 1, 20);
 
-  for(let i=1;i<=n;i++){
-    print(String(i));
-    await sleep(30);
-  }
+        return Array(amount)
+            .fill(args.slice(1).join(" "))
+            .join("\n");
+    },
 
-  return "";
-},
+    count: async args => {
 
-reverse:args=>args.join(" ").split("").reverse().join(""),
+        const amount =
+            Math.min(parseInt(args[0]) || 10, 50);
 
-upper:args=>args.join(" ").toUpperCase(),
+        for (let i = 1; i <= amount; i++) {
 
-lower:args=>args.join(" ").toLowerCase(),
+            print(String(i));
 
-length:args=>"LENGTH: "+args.join(" ").length,
+            await sleep(25);
+        }
 
-timecode:()=>String(Math.floor(Date.now()/1000)),
+        return "";
+    },
 
-history:()=>history.length?history.join("\n"):"NO HISTORY.",
+    reverse: args =>
+        args.join(" ").split("").reverse().join(""),
 
-ls:()=>`
+    upper: args =>
+        args.join(" ").toUpperCase(),
+
+    lower: args =>
+        args.join(" ").toLowerCase(),
+
+    length: args =>
+        "LENGTH: " + args.join(" ").length,
+
+    timecode: () =>
+        String(Math.floor(Date.now() / 1000)),
+
+    history: () =>
+        commandHistory.length
+            ? commandHistory.join("\n")
+            : "NO HISTORY.",
+
+    ls: () => `
 VIRTUAL FILES
 
 ACCESS/
@@ -519,198 +686,312 @@ ACCESS/
   protocols.dat
   session.tmp`,
 
-dir:()=>commands.ls(),
+    dir: () =>
+        commands.ls(),
 
-readme:()=>`
+    readme: () => `
 ACCESS TERMINAL
 
 This page is a fictional terminal interface.
+
 Commands are simulations for entertainment.
 
 Signup and Login are stored locally in this browser.
-They are NOT real secure authentication.`,
+They are NOT secure authentication.`,
 
-logout:()=>{
-  currentUser=null;
-  return "LOGGED OUT.";
-},
+    logout: () => {
 
-users:()=>{
-  const users=getUsers();
-  const names=Object.keys(users);
+        currentUser = null;
 
-  return names.length
-    ?"LOCAL USERS:\n\n"+names.join("\n")
-    :"NO LOCAL USERS.";
-}
+        return "LOGGED OUT.";
+    },
+
+    users: () => {
+
+        const users = getUsers();
+        const names = Object.keys(users);
+
+        if (!names.length) {
+            return "NO LOCAL USERS.";
+        }
+
+        return "LOCAL USERS:\n\n" +
+            names.join("\n");
+    }
 };
 
-async function runCommand(raw){
+async function runCommand(raw) {
 
-  const trimmed=raw.trim();
+    const commandLine = raw.trim();
 
-  if(!trimmed)
-    return;
+    if (!commandLine) {
+        return;
+    }
 
-  history.push(trimmed);
-  historyIndex=history.length;
+    commandHistory.push(commandLine);
+    historyIndex = commandHistory.length;
 
-  print((currentUser||"guest")+"@access:~$ "+trimmed,"white");
+    print(
+        (currentUser || "guest") +
+        "@access:~$ " +
+        commandLine,
+        "white"
+    );
 
-  const parts=trimmed.match(/(?:[^\s"]+|"[^"]*")+/g)||[];
+    const parts =
+        commandLine.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
 
-  const command=(parts.shift()||"").toLowerCase();
+    const command =
+        (parts.shift() || "").toLowerCase();
 
-  const args=parts.map(x=>x.replace(/^"|"$/g,""));
+    const args =
+        parts.map(value =>
+            value.replace(/^"|"$/g, "")
+        );
 
-  if(command==="signup"){
-    print(await signup(args));
-    return;
-  }
+    if (command === "signup") {
 
-  if(command==="login"){
-    print(await login(args));
-    return;
-  }
+        print(await signup(args));
 
-  if(!commands[command]){
-    print("COMMAND NOT FOUND: "+command,"red");
-    print("TYPE HELP FOR AVAILABLE COMMANDS.","dim");
-    return;
-  }
+        return;
+    }
 
-  try{
-    const result=await commands[command](args);
+    if (command === "login") {
 
-    if(result)
-      print(result);
-  }catch{
-    print("COMMAND ERROR.","red");
-  }
+        print(await login(args));
+
+        return;
+    }
+
+    if (!commands[command]) {
+
+        print(
+            "COMMAND NOT FOUND: " + command,
+            "red"
+        );
+
+        print(
+            "TYPE HELP FOR AVAILABLE COMMANDS.",
+            "dim"
+        );
+
+        return;
+    }
+
+    try {
+
+        const result =
+            await commands[command](args);
+
+        if (result) {
+            print(result);
+        }
+
+    } catch {
+
+        print(
+            "COMMAND ERROR.",
+            "red"
+        );
+    }
 }
 
-function matrix(){
+function createMatrix() {
 
-  const canvas=document.createElement("canvas");
+    const canvas =
+        document.createElement("canvas");
 
-  canvas.style.position="fixed";
-  canvas.style.inset="0";
-  canvas.style.zIndex="-1";
-  canvas.style.pointerEvents="none";
+    canvas.style.position = "fixed";
+    canvas.style.left = "0";
+    canvas.style.top = "0";
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+    canvas.style.zIndex = "-1";
+    canvas.style.pointerEvents = "none";
 
-  document.body.appendChild(canvas);
+    document.body.appendChild(canvas);
 
-  const ctx=canvas.getContext("2d");
+    const context =
+        canvas.getContext("2d");
 
-  canvas.width=innerWidth;
-  canvas.height=innerHeight;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-  const chars="01ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const size=15;
+    const characters =
+        "01ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-  const columns=Math.floor(canvas.width/size);
-  const drops=Array(columns).fill(1);
+    const size = 15;
 
-  let frames=0;
+    const columns =
+        Math.floor(canvas.width / size);
 
-  function draw(){
+    const drops =
+        Array(columns).fill(1);
 
-    ctx.fillStyle="rgba(0,0,0,.08)";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
+    let frames = 0;
 
-    ctx.fillStyle="#00ff55";
-    ctx.font=size+"px monospace";
+    function draw() {
 
-    for(let i=0;i<drops.length;i++){
+        context.fillStyle =
+            "rgba(0,0,0,0.08)";
 
-      const char=chars[Math.floor(Math.random()*chars.length)];
+        context.fillRect(
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
 
-      ctx.fillText(
-        char,
-        i*size,
-        drops[i]*size
-      );
+        context.fillStyle = "#00ff55";
+        context.font = size + "px monospace";
 
-      if(drops[i]*size>canvas.height&&Math.random()>.975)
-        drops[i]=0;
+        for (let i = 0; i < drops.length; i++) {
 
-      drops[i]++;
+            const character =
+                characters[
+                    Math.floor(
+                        Math.random() *
+                        characters.length
+                    )
+                ];
+
+            context.fillText(
+                character,
+                i * size,
+                drops[i] * size
+            );
+
+            if (
+                drops[i] * size > canvas.height &&
+                Math.random() > 0.975
+            ) {
+                drops[i] = 0;
+            }
+
+            drops[i]++;
+        }
+
+        frames++;
+
+        if (frames < 250) {
+
+            requestAnimationFrame(draw);
+
+        } else {
+
+            canvas.remove();
+        }
     }
 
-    frames++;
-
-    if(frames<250)
-      requestAnimationFrame(draw);
-    else
-      canvas.remove();
-  }
-
-  draw();
+    draw();
 }
 
-input.addEventListener("keydown",async e=>{
+input.addEventListener("keydown", async event => {
 
-  if(e.key==="Enter"){
-    const value=input.value;
-    input.value="";
-    await runCommand(value);
-    screen.scrollTop=screen.scrollHeight;
-  }
+    if (event.key === "Enter") {
 
-  if(e.key==="ArrowUp"){
-    e.preventDefault();
+        const value = input.value;
 
-    if(history.length){
-      historyIndex=Math.max(0,historyIndex-1);
-      input.value=history[historyIndex]||"";
+        input.value = "";
+
+        await runCommand(value);
+
+        screen.scrollTop =
+            screen.scrollHeight;
+
+        return;
     }
-  }
 
-  if(e.key==="ArrowDown"){
-    e.preventDefault();
+    if (event.key === "ArrowUp") {
 
-    if(history.length){
-      historyIndex=Math.min(history.length,historyIndex+1);
-      input.value=history[historyIndex]||"";
+        event.preventDefault();
+
+        if (commandHistory.length) {
+
+            historyIndex =
+                Math.max(0, historyIndex - 1);
+
+            input.value =
+                commandHistory[historyIndex] || "";
+        }
+
+        return;
     }
-  }
 
-  if(e.key==="Tab"){
-    e.preventDefault();
+    if (event.key === "ArrowDown") {
 
-    const val=input.value.toLowerCase();
+        event.preventDefault();
 
-    const matches=Object.keys(commands)
-      .filter(x=>x.startsWith(val));
+        if (commandHistory.length) {
 
-    if(matches.length===1)
-      input.value=matches[0];
-  }
+            historyIndex =
+                Math.min(
+                    commandHistory.length,
+                    historyIndex + 1
+                );
+
+            input.value =
+                commandHistory[historyIndex] || "";
+        }
+
+        return;
+    }
+
+    if (event.key === "Tab") {
+
+        event.preventDefault();
+
+        const typed =
+            input.value.toLowerCase();
+
+        const matches =
+            Object.keys(commands)
+                .filter(command =>
+                    command.startsWith(typed)
+                );
+
+        if (matches.length === 1) {
+
+            input.value = matches[0];
+        }
+    }
 });
 
-document.addEventListener("click",()=>{
-  input.focus();
+document.addEventListener("click", () => {
+    input.focus();
 });
 
-async function boot(){
+async function boot() {
 
-  print("ACCESS TERMINAL v4.2.7","cyan");
+    print(
+        "ACCESS TERMINAL v4.2.7",
+        "cyan"
+    );
 
-  await sleep(120);
+    await sleep(120);
 
-  print("LOCAL SESSION INITIALIZED.","dim");
+    print(
+        "LOCAL SESSION INITIALIZED.",
+        "green"
+    );
 
-  await sleep(150);
+    await sleep(140);
 
-  print("CONNECTION STATUS: ONLINE","green");
+    print(
+        "CONNECTION STATUS: ONLINE",
+        "green"
+    );
 
-  await sleep(100);
+    await sleep(100);
 
-  print("");
+    print("");
 
-  print("TYPE HELP TO LIST AVAILABLE COMMANDS.","white");
+    print(
+        "TYPE HELP TO LIST AVAILABLE COMMANDS.",
+        "white"
+    );
 
-  print("");
+    print("");
 }
 
 boot();
